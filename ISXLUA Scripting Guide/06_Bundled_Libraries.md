@@ -25,6 +25,8 @@ none requires the "with libisxgames" build.
 | `require("zlib")` | lua-zlib -- deflate/inflate (zlib and gzip) compression, plus `adler32` / `crc32` checksums. |
 | `require("lsqlite3")` | lsqlite3 -- an embedded SQLite 3 database, backed by on-disk files or a fast `:memory:` database. |
 | `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
+| `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
+| `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
 
 ### JSON with `cjson`
 
@@ -198,6 +200,68 @@ db:close()
 `db:nrows` yields a table keyed by column name; `db:rows` yields positional values;
 `db:exec` runs one or more statements with no result rows. Always `finalize` prepared
 statements and `close` the database when done.
+
+### Classes with `middleclass`
+
+`middleclass` gives you clean object-orientation -- classes, single inheritance,
+and instance checks -- without writing metatable boilerplate yourself. It is pure
+Lua, bundled in both builds:
+
+```lua
+local class = require("middleclass")
+
+local Animal = class("Animal")
+function Animal:initialize(name) self.name = name end
+function Animal:speak() return "..." end
+
+local Dog = Animal:subclass("Dog")          -- or class("Dog", Animal)
+function Dog:speak() return "Woof! I am " .. self.name end
+
+local d = Dog:new("Rex")
+echo(d:speak())                              -- Woof! I am Rex
+echo(tostring(d:isInstanceOf(Dog)))          -- true
+echo(tostring(d:isInstanceOf(Animal)))       -- true (inherited)
+echo(d.class.name)                           -- Dog
+```
+
+### Standard-library extensions with Penlight
+
+[Penlight](https://lunarmodules.github.io/Penlight/) is a large collection of
+utilities that fill gaps in Lua's standard library. Each submodule is required by
+name (`pl.tablex`, `pl.stringx`, `pl.pretty`, ...); it is pure Lua and bundled in
+both builds. A few representative pieces:
+
+```lua
+local tablex  = require("pl.tablex")
+local stringx = require("pl.stringx")
+local pretty  = require("pl.pretty")
+
+-- deep copy / deep compare of nested tables
+local original = { hp = 100, pos = { x = 1, y = 2 } }
+local copy = tablex.deepcopy(original)
+echo(tostring(tablex.deepcompare(original, copy)))   -- true
+
+-- string helpers Lua's own library lacks
+echo(stringx.strip("   padded   "))                  -- "padded"
+local parts = stringx.split("a,b,c", ",")            -- { "a", "b", "c" }
+echo(parts[1] .. "-" .. parts[3])                    -- a-c
+
+-- pretty-print a table (and read one back)
+echo(pretty.write({ mob = "orc", count = 3 }))
+```
+
+Container classes are handy too:
+
+```lua
+local List = require("pl.List")
+local nums = List{ 3, 1, 2 }
+nums:append(4)
+echo(nums:sort():join(", "))                         -- 1, 2, 3, 4
+```
+
+> `require("pl")` on its own loads the whole library lazily *into globals* -- handy
+> for exploration, but prefer requiring the specific `pl.*` submodules you use so
+> your script's globals stay clean.
 
 ## Loading your own modules
 
