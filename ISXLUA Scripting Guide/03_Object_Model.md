@@ -65,6 +65,38 @@ SomeTLO(1):SomeMethod()     -- your game extension's methods
 (A method is an *action*; a member is a *value*. Same split as LavishScript's
 `Object:Method` vs `${Object.Member}`.)
 
+## Passing arguments: numbers and booleans convert automatically
+
+When you pass a Lua value as an argument to a member (`obj.Member(args)`), a
+method (`obj:Method(args)`), or a numeric index (`obj[i]`), ISXLUA converts it to
+the form LavishScript expects. You pass ordinary Lua values -- you do **not** need
+to convert them to strings yourself:
+
+- **Integers stay integers.** A Lua integer like `42` is passed as `42`, never
+  `42.0`, so a member whose argument is a whole number sees exactly that whole
+  number.
+- **Floats keep their precision.** A Lua float like `42.5` is passed as `42.5`
+  with full precision, exactly as `tostring(42.5)` would show it -- and always
+  with a `.` decimal point, regardless of your system's regional settings, so a
+  European locale never turns it into `42,5`.
+- **Booleans become `TRUE` / `FALSE`.** A Lua `true` is passed as `TRUE` and
+  `false` as `FALSE`, the forms LavishScript's boolean arguments understand.
+- **Strings pass through unchanged.**
+
+```lua
+SomeTLO.Lookup("Fippy")        -- a string argument
+SomeTLO.NearestWithin(30)      -- an integer argument -> "30"
+SomeTLO.NearestWithin(30.5)    -- a float argument, full precision -> "30.5"
+SomeTLO.SetFlag(true)          -- a boolean argument -> "TRUE"
+SomeTLO(2)                     -- an integer index -> "2", never "2.0"
+```
+
+Lua tracks whether a number is an integer or a float, and ISXLUA preserves that
+distinction: a value you wrote as `5` is passed as an integer, while `5.0` or
+`5.5` is passed as a float. If you ever need to force one or the other, use Lua's
+own `math.floor`/`math.tointeger` (for an integer) or add `.0` / use `1.0 * x`
+(for a float) before passing the value.
+
 ## Scalar results are native Lua values
 
 This is the single most important thing to understand. When a member, TLO, or
