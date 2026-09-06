@@ -120,6 +120,107 @@ Under the hood this uses the bundled `serpent` library, so a saved file is
 human-readable, loadable Lua. See [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md) if you want to drive
 the serialization yourself (for example to persist as JSON instead).
 
+## `IS.Settings(name)` -- a hierarchical, persistent config store
+
+Where `IS.SaveTable` stores one flat table under a name, **`IS.Settings`** gives you
+a richer, structured configuration store: named **settings** (leaf values) organized
+into named **sections** that can nest, saved to and loaded from XML. Use it for
+user-facing config -- options, profiles, per-character preferences -- where you want
+sections and typed values rather than one big table.
+
+`IS.Settings(name)` returns a **handle** to a config set. The first time you open a
+given name in a session, ISXLUA automatically loads its saved file (if one exists),
+so your config is there with no extra step; call `handle:Save()` to write changes
+back.
+
+```lua
+local cfg = IS.Settings("MyBot")     -- open (and auto-load) the "MyBot" config
+
+cfg:Set("enabled", true)             -- store a boolean
+cfg:Set("range", 35)                 -- store a number
+cfg:Set("ui/window/x", 100)          -- a path: section "ui" -> section "window" -> "x"
+cfg:Set("ui/window/y", 240)
+
+local range = cfg:Get("range")       -- 35 (a real number)
+local on    = cfg:Get("enabled")     -- true (a real boolean)
+local x     = cfg:Get("ui/window/x") -- 100
+
+cfg:Save()                           -- persist to disk (as MyBot.xml)
+```
+
+### Values round-trip as the natural Lua type
+
+`Set` accepts a **string, number, or boolean**; passing **`nil` deletes** the
+setting. `Get` reads it back and infers the type: `"TRUE"`/`"FALSE"` come back as a
+**boolean**, a value that is wholly a number comes back as a **number**, and anything
+else comes back as a **string**. So `cfg:Set("n", 5)` then `cfg:Get("n")` gives you
+the number `5`.
+
+```lua
+local hits = cfg:Get("hits", 0)      -- second arg is a default when the setting is absent
+cfg:Set("hits", hits + 1)
+```
+
+If you need the **exact stored text** (for example a numeric-looking string like a
+zip code that you do not want turned into a number), use `GetString`:
+
+```lua
+local zip = cfg:GetString("zip")     -- always a string, no inference
+```
+
+### Paths and sections
+
+A setting name can be a **path** with `/` separators: every segment except the last
+is a section (created as needed on `Set`). You can also navigate explicitly with
+`Section`, which returns a handle to a child section:
+
+```lua
+local win = cfg:Section("ui"):Section("window")
+win:Set("x", 100)
+win:Set("y", 240)
+echo(win:Get("x"))                   -- 100
+
+-- Section(name, false) only *finds* an existing section (returns nil if absent):
+local maybe = cfg:Section("profiles", false)
+```
+
+### Inspecting, saving, and loading
+
+| Method | What it does |
+|---|---|
+| `handle:Set(path, value)` | store a value (`nil` deletes); creates sections in the path |
+| `handle:Get(path [, default])` | read, type-inferred; `default` (or `nil`) if absent |
+| `handle:GetString(path [, default])` | read the exact stored string |
+| `handle:Exists(path)` | `true` if the setting exists |
+| `handle:Delete(path)` | remove a setting |
+| `handle:Settings()` | array of the setting names directly in this set |
+| `handle:Sets()` | array of the child-section names directly in this set |
+| `handle:Section(name [, create])` | a handle to a child section (find-or-create by default) |
+| `handle:Name()` | this set's name |
+| `handle:Save([name])` | write to XML (default file: this set's name) |
+| `handle:Load([name])` | read from XML (default file: this set's name) |
+| `handle:Clear()` | remove all settings and child sections |
+| `handle:Sort()` | sort the set by name |
+
+```lua
+for _, key in ipairs(cfg:Settings()) do
+    echo(key .. " = " .. tostring(cfg:Get(key)))
+end
+```
+
+- **`name`** (for `IS.Settings`, `Save`, and `Load`) is a logical key, not a path.
+  Files live together in the same `ISXLUAData` folder inside your InnerSpace
+  **Scripts** directory, as `<name>.xml`, and the name is sanitized so it can never
+  point outside that folder.
+- `Save` / `Load` return `true` on success. `Load` returns `false` (gracefully) when
+  the file does not exist.
+- A handle is cleaned up automatically when your script ends. Your saved config on
+  disk persists, of course -- that is the point.
+
+**`IS.SaveTable` vs `IS.Settings`:** reach for `IS.SaveTable` when you just want to
+stash a Lua table and get it back; reach for `IS.Settings` when you want structured,
+sectioned, typed configuration (especially config a user edits).
+
 ## The reverse bridge -- calling Lua from LavishScript
 
 Everything so far goes **Lua -> LavishScript**: your script reads
@@ -227,9 +328,11 @@ traceback; `${ISXLUA.Call[...]}` then yields NULL and `luacall` reports the erro
 For a complete, game-specific worked example of the reverse bridge, see
 [`07_Examples.md`](07_Examples.md).
 
-## The event functions
+## The event and async functions
 
 `IS.AttachEvent`, `IS.DetachEvent`, and `IS.FireEvent` also live on the `IS`
-table; they are documented in [`04_Timing_And_Events.md`](04_Timing_And_Events.md).
+table, as do the asynchronous HTTP functions `IS.HttpGet` / `IS.HttpPost` (in the
+"with libisxgames" build). All of these are documented in
+[`04_Timing_And_Events.md`](04_Timing_And_Events.md).
 
 Next: [`03_Object_Model.md`](03_Object_Model.md).

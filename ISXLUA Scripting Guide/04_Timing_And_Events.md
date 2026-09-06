@@ -286,6 +286,90 @@ queue some data for your main loop (which *can* wait) to act on.
 The resolution is one frame, so a very small interval (or `0`) simply runs the
 callback about once per frame.
 
+## Asynchronous HTTP -- `IS.HttpGet`, `IS.HttpPost`
+
+> **Requires the "with libisxgames" build of ISXLUA.** These two functions exist
+> **only** in that build. In the plain build they are simply **absent** from the `IS`
+> table, so you can feature-detect them before use:
+>
+> ```lua
+> if IS.HttpGet then
+>     -- HTTP is available in this build
+> end
+> ```
+
+`IS.HttpGet` and `IS.HttpPost` make an HTTP request **without blocking your script**.
+They return immediately; when the response arrives, a **callback** you supply is
+run. The callback receives `(ok, status, body)`:
+
+- **`ok`** -- `true` when the server answered with a 2xx status; `false` otherwise
+  (including a timeout or a connection failure).
+- **`status`** -- the HTTP status code as a number (`200`, `404`, ...), or `0` if no
+  response arrived (timeout / connection failure).
+- **`body`** -- the response body as a string (empty on failure).
+
+Each call returns an opaque **handle** (a number) identifying the request.
+
+### `IS.HttpGet(url, callback)`
+
+```lua
+IS.HttpGet("https://example.com/api/status", function(ok, status, body)
+    if ok then
+        echo("got " .. #body .. " bytes, status " .. status)
+    else
+        echo("request failed (status " .. status .. ")")
+    end
+end)
+```
+
+### `IS.HttpPost(url, body [, contentType], callback)`
+
+`body` is a string (numbers are accepted and converted to text). The optional
+`contentType` (for example `"application/json"`) is passed as the request's content
+type when given:
+
+```lua
+-- POST JSON (encode with the bundled cjson -- see 05_Bundled_Libraries.md):
+local cjson = require("cjson")
+local payload = cjson.encode({ name = "test", value = 42 })
+
+IS.HttpPost("https://example.com/api/report", payload, "application/json",
+    function(ok, status, body)
+        if ok then
+            echo("reported ok")
+        else
+            echo("report failed: " .. status)
+        end
+    end)
+
+-- Without a content type, omit it (the callback is then the third argument):
+IS.HttpPost("https://example.com/hook", "raw body text", function(ok, status, body)
+    echo("done: " .. tostring(ok))
+end)
+```
+
+### The callback runs atomically -- no `wait()` inside it
+
+Like an event handler or a timer callback, the completion callback runs
+**atomically**: it must run to completion and **cannot call `wait()` /
+`waitframe()` / `waituntil()` / `waitforevent()`**. If the response needs to kick off
+timed work, record it (set a flag or push it into a table) and let your main loop --
+which *can* wait -- act on it. An error thrown inside the callback is printed to the
+console (with a traceback) and never crashes the game.
+
+### Notes
+
+- **These require a running script.** Call them from a script (`lua`/`run`), not from
+  a `lua -c "..."` one-liner -- the callback would outlive the one-liner's state. A
+  request is also dropped cleanly if its script ends before the response arrives.
+- **Timeouts / connection failures.** A request that gets no response within a fixed
+  timeout (about 30 seconds), or that fails to connect at all, completes with
+  `ok = false, status = 0` so your callback always runs exactly once.
+- **Correlation caveat.** Responses are matched to requests by URL. If you fire
+  several requests to the *exact same URL* at once, ISXLUA cannot tell their responses
+  apart and may deliver them to the callbacks in a different order. Requests to
+  different URLs are unaffected.
+
 ## Limits
 
 You can have up to **64 distinct events** attached at once (across all scripts).
