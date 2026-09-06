@@ -370,6 +370,81 @@ console (with a traceback) and never crashes the game.
   apart and may deliver them to the callbacks in a different order. Requests to
   different URLs are unaffected.
 
+## Sharing data between scripts
+
+Every script runs in its own isolated Lua state, so a global in one script is
+invisible to another and you cannot pass a table straight from one to the next.
+ISXLUA gives you two ways to share across that boundary -- a **value store** and a
+**message bus** -- and both work by **deep-copying** the data (each script always
+gets its own private copy; nothing is ever shared by reference).
+
+### What can be copied
+
+The same rules apply to both facilities:
+
+- **Copyable:** `nil`, booleans, numbers, strings, and **tables** of those (nested
+  as deep as you like), with string or integer keys.
+- **Not copyable (raises an error):** functions, userdata/threads, and tables that
+  contain a **reference cycle**. Object wrappers from the object model are not
+  copyable either -- copy out the scalar values you need (`.Name`, `.Level`, ...)
+  into a plain table first.
+
+### The shared value store -- `IS.Share`, `IS.Shared`
+
+```lua
+-- in one script:
+IS.Share("boss", { name = "Fippy", hp = 100, adds = { "a", "b" } })
+
+-- in another script (or the same one):
+local boss = IS.Shared("boss")
+if boss then echo(boss.name .. " has " .. boss.hp .. " hp") end
+```
+
+- **`IS.Share(key, value)`** stores a deep copy of `value` under a string `key`.
+  Passing `nil` as the value removes the key.
+- **`IS.Shared(key)`** returns a fresh deep copy of the stored value, or `nil` if
+  the key was never set (so `local t = IS.Shared("k") or {}` is a safe idiom).
+
+Because each side gets a copy, changing the table you got back from `IS.Shared` does
+**not** change the stored value -- call `IS.Share` again to publish an update. Shared
+values persist until you overwrite or remove them (or ISXLUA unloads); they are not
+tied to the lifetime of the script that set them.
+
+### The message bus -- `IS.Publish`, `IS.Subscribe`, `IS.Unsubscribe`
+
+Where the store is a shared *value*, the bus is a broadcast: one script publishes to
+a named **channel**, and every script subscribed to that channel has its callback run
+with a copy of the published arguments.
+
+```lua
+-- subscriber (in any script):
+local handle = IS.Subscribe("alerts", function(kind, detail)
+    echo("ALERT [" .. kind .. "]: " .. tostring(detail))
+end)
+
+-- publisher (in any script, including the same one):
+local n = IS.Publish("alerts", "low-health", 15)   -- delivers to every subscriber
+echo("delivered to " .. n .. " subscriber(s)")
+```
+
+- **`IS.Subscribe(channel, fn)`** registers `fn` as a subscriber of `channel` and
+  returns a **handle**.
+- **`IS.Unsubscribe(channel)`** removes all of *your* subscriptions to a channel;
+  pass the handle -- `IS.Unsubscribe(channel, handle)` -- to remove just that one.
+- **`IS.Publish(channel, ...)`** delivers a deep copy of the arguments to every
+  subscriber on the channel (across all scripts, including the publisher) and returns
+  how many callbacks ran.
+
+Subscriptions belong to the subscribing script and are **removed automatically when
+that script ends** -- no cleanup needed on exit. `IS.Subscribe` needs a running
+script, so call it from a `.lua` script, not a `lua -c "..."` one-liner.
+
+**Subscriber callbacks run atomically, like event handlers:** they must run to
+completion and **cannot call `wait()` / `waitframe()` / `waituntil()` /
+`waitforevent()`**. If a message needs to start timed work, record it (set a flag or
+queue it in a table) and let your main loop act on it. An error in a subscriber is
+printed to the console (with a traceback) and never crashes the game or the publisher.
+
 ## Limits
 
 You can have up to **64 distinct events** attached at once (across all scripts).

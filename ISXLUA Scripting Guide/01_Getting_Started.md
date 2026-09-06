@@ -48,7 +48,12 @@ replaces `print` and adds `echo` so both go to the InnerSpace console. See
 | `lua -c "<chunk>"` | Run an inline one-liner (see below). |
 | `endlua <name>` | Stop one running script. |
 | `endlua all` (or `endlua *`) | Stop every running Lua script. |
-| `luas` | List the running Lua scripts and how long each has been running. |
+| `lua -pause <name>` | Freeze a running script (see [Pausing, resuming, and reloading](#pausing-resuming-and-reloading-scripts)). |
+| `lua -resume <name>` | Un-freeze a paused script. |
+| `lua -reload <name>` | Restart a script from its file with the same arguments. |
+| `luas` | List the running Lua scripts and how long each has been running (a frozen one is tagged `[PAUSED]`). |
+
+The `-pause` / `-resume` / `-reload` forms also accept `all` (or `*`) to act on every running script at once.
 
 **Name resolution** works like the native `run` command: the name is looked for
 (1) as given (an absolute path, or relative to the current game directory), then
@@ -99,6 +104,69 @@ This is ideal for quickly testing an expression. A one-liner is **not** a schedu
 script, so it **cannot** use `wait()` / `waitframe()` / `waituntil()` (an attempt is
 reported as an error). For anything that needs to wait, put it in a `.lua` file and
 run it with `lua <name>`.
+
+## Autoexec: `autoload.lua`
+
+When ISXLUA finishes loading, it looks for a file named **`autoload.lua`** in your
+InnerSpace **Scripts** directory and, if it exists, runs it automatically -- exactly
+as if you had typed `lua autoload`. If the file is not there, nothing happens (no
+error, no message).
+
+This is the place to start whatever you always want running: load a toolbar, attach
+your event handlers, kick off a background helper. A simple example:
+
+```lua
+-- autoload.lua
+echo("autoload: starting up")
+IS.Execute("lua mybot")     -- start another script
+```
+
+`autoload.lua` runs once each time the extension loads, so reloading ISXLUA
+(`ext -unload ISXLUA` then `ext ISXLUA`) runs it again.
+
+## Pausing, resuming, and reloading scripts
+
+You can freeze a running script and later thaw it, or restart it from disk, without
+losing the other scripts that are running.
+
+| Command | Lua equivalent | Effect |
+|---|---|---|
+| `lua -pause <name>` | `IS.PauseScript("<name>")` | Freeze the script. |
+| `lua -resume <name>` | `IS.ResumeScript("<name>")` | Un-freeze it. |
+| `lua -reload <name>` | `IS.ReloadScript("<name>")` | Stop it and re-run it from its file. |
+
+**What pausing freezes.** A paused script stops advancing: its `wait()`,
+`waitframe()`, `waituntil()`, and `waitforevent()` are all **held**, and its
+`setTimeout` / `setInterval` timers stop firing. The time remaining is *preserved*,
+not consumed -- if a script was 6 seconds into a `wait(10)` when you paused it, it
+still has 4 seconds left when you resume it (even if it was paused for an hour). An
+event awaited with `waitforevent()` that fires while the script is paused is
+remembered and delivered when you resume.
+
+**What pausing does *not* freeze.** Anything that is not the script's own step-by-step
+flow keeps working: persistent event handlers you attached with `IS.AttachEvent`
+still fire, functions you published with `IS.Register` are still callable from
+LavishScript, and messages published on the bus are still delivered. Pause suspends a
+script's *main flow and timers*, not its callbacks.
+
+**Reloading** stops the script and starts it again from its file, with the same
+arguments it was originally given -- the quickest way to pick up an edit you just
+saved. A reload happens on the next frame, which means a script is even allowed to
+reload *itself*:
+
+```lua
+-- reload myself when the user asks
+IS.AttachEvent("MyReloadRequested", function() IS.ReloadScript() end)
+```
+
+Called with no name, `IS.PauseScript()`, `IS.ResumeScript()`, and `IS.ReloadScript()`
+act on the **calling** script; pass a name to control another script. To pause
+yourself and wait to be resumed by someone else, pause and then yield:
+
+```lua
+IS.PauseScript()        -- freeze myself...
+waitframe()             -- ...and hand control back; I resume when something calls IS.ResumeScript("me")
+```
 
 ## When a script errors
 
@@ -160,6 +228,12 @@ if ISXLUA.IsReady then echo("ISXLUA is ready") end
   [`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 - **The object model** -- bare-global TLOs and generic member/method access
   ([`03_Object_Model.md`](03_Object_Model.md)).
+- **Lifecycle control** -- pause / resume / reload a running script from the console
+  or from Lua (`IS.PauseScript` / `IS.ResumeScript` / `IS.ReloadScript`), plus
+  autoexec via `autoload.lua` (above).
+- **Cross-script data sharing** -- a shared value store and a publish/subscribe
+  message bus (`IS.Share` / `IS.Shared`, `IS.Publish` / `IS.Subscribe`) that copy
+  data between otherwise-isolated scripts ([`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 - **Bundled libraries** -- `require("cjson")`, `require("serpent")`, and more
   ([`05_Bundled_Libraries.md`](05_Bundled_Libraries.md)).
 
