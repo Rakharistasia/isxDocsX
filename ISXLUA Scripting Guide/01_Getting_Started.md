@@ -122,7 +122,38 @@ IS.Execute("lua mybot")     -- start another script
 ```
 
 `autoload.lua` runs once each time the extension loads, so reloading ISXLUA
-(`ext -unload ISXLUA` then `ext ISXLUA`) runs it again.
+(`ext -unload ISXLUA` then `ext ISXLUA`) runs it again. Running `endlua all` (or
+`endlua autoload`) does **not** re-run it -- it fires only on a fresh extension load.
+
+### Per-game autoexec: `autoload_<game>.lua`
+
+Right after `autoload.lua`, ISXLUA also looks for a **per-game** autoexec file and
+runs it if the matching game extension is loaded and ready. The file is named
+`autoload_<game>.lua`, where `<game>` is the short tag for the extension:
+
+| If this game extension is loaded | ISXLUA also runs |
+|---|---|
+| ISXEQ2 | `autoload_eq2.lua` |
+| ISXEVE | `autoload_eve.lua` |
+| ISXPantheon | `autoload_pantheon.lua` |
+
+This is the place to put startup that only makes sense for one game -- e.g. an
+EverQuest II toolbar in `autoload_eq2.lua`, an EVE Online mining helper in
+`autoload_eve.lua`. `autoload.lua` (which always runs first) stays the place for
+game-independent setup.
+
+A few details worth knowing:
+
+- **It is silent when there is nothing to do.** If the file is absent, or no
+  matching game extension is loaded, nothing happens (no error, no message) --
+  exactly like `autoload.lua`.
+- **A late-loading game extension is still caught.** A game extension sometimes
+  finishes loading a moment *after* ISXLUA. ISXLUA keeps watching for a short,
+  bounded window (about 30 seconds) after it loads, so `autoload_<game>.lua` still
+  runs once the game extension becomes ready. After that window it stops looking.
+- **Each file runs once per ISXLUA load**, and it does not re-run on `endlua all`.
+- **More than one at a time is fine.** If several game extensions are loaded in the
+  same session, each one's `autoload_<game>.lua` runs independently.
 
 ## Pausing, resuming, and reloading scripts
 
@@ -230,7 +261,7 @@ if ISXLUA.IsReady then echo("ISXLUA is ready") end
   ([`03_Object_Model.md`](03_Object_Model.md)).
 - **Lifecycle control** -- pause / resume / reload a running script from the console
   or from Lua (`IS.PauseScript` / `IS.ResumeScript` / `IS.ReloadScript`), plus
-  autoexec via `autoload.lua` (above).
+  autoexec via `autoload.lua` and the per-game `autoload_<game>.lua` (above).
 - **Cross-script data sharing** -- a shared value store and a publish/subscribe
   message bus (`IS.Share` / `IS.Shared`, `IS.Publish` / `IS.Subscribe`) that copy
   data between otherwise-isolated scripts ([`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
