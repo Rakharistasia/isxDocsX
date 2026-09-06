@@ -114,4 +114,4 @@ The search covers `mymodule.lua`, `mymodule/init.lua`, and the same under
 `lua_modules`. The bundled modules above resolve first (they are already loaded
 internally), so they never depend on the path.
 
-Next: `06_Migration_Gotchas.md`.
+Next: [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).

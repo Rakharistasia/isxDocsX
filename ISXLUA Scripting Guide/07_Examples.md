@@ -18,7 +18,7 @@ echo("Hello from Lua!")
 ```
 
 Run it: `lua hello`. Remember to use `echo` / `print`, not Lua's raw output --
-see `02_The_IS_Bridge.md`.
+see [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md).
 
 ### 2. Read your character (with the ISXEQ2 load-and-ready gate)
 
@@ -77,7 +77,7 @@ end
 
 Note `Me.Level` is used in arithmetic/concatenation directly -- scalars are native
 Lua values. And `Me.Pet` is tested with `Exists()`, never a bare `if Me.Pet then`
-(which is always true). See `03_Object_Model.md`.
+(which is always true). See [`03_Object_Model.md`](03_Object_Model.md).
 
 ### 3. A wait loop
 
@@ -118,7 +118,7 @@ end
 
 The handler auto-detaches when the script ends, so `endlua chatecho` cleans up for
 you. Handlers run atomically -- never call `wait()` inside one (see
-`04_Timing_And_Events.md`).
+[`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 
 ### 5. Remembering state between runs
 
@@ -140,7 +140,7 @@ echo("This script has now been run " .. state.runs .. " time(s).")
 The first run prints `1` (there is no saved file yet, so `IS.LoadTable` returns
 `nil` and the `or { runs = 0 }` default kicks in); each later run increments and
 persists the count. The data lives in an `ISXLUAData` folder inside your Scripts
-directory -- see `02_The_IS_Bridge.md`.
+directory -- see [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md).
 
 ---
 
@@ -268,11 +268,11 @@ Why it is shaped this way:
   back elsewhere: `local ok, data = serpent.load(io.open(saveFile):read("a"))`.
 
 Swap `serpent` for `cjson` if you would rather persist JSON -- see
-`05_Bundled_Libraries.md`.
+[`05_Bundled_Libraries.md`](05_Bundled_Libraries.md).
 
 ### Reverse bridge: offloading a decision to Lua
 
-The reverse bridge (`02_The_IS_Bridge.md`) lets an existing LavishScript bot call
+The reverse bridge ([`02_The_IS_Bridge.md`](02_The_IS_Bridge.md)) lets an existing LavishScript bot call
 Lua for a piece of logic and use the result. Here a Lua script gates ISXEQ2,
 registers a couple of decision functions, then stays alive so LavishScript can call
 them; the LavishScript side (an `.iss` bot, or just the console) drives the calls

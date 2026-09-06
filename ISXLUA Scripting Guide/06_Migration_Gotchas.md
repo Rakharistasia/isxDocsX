@@ -5,7 +5,7 @@ when you move to Lua under ISXLUA. Read this chapter before porting a script.
 
 > Names like `SomeTLO`, `SomeObject`, `SomeMember`, `SomeNumber`, and
 > `SomeMethod` below are **placeholders** -- substitute the real top-level objects,
-> members, and methods your loaded game extension provides. `07_Examples.md` shows
+> members, and methods your loaded game extension provides. [`07_Examples.md`](07_Examples.md) shows
 > complete, game-specific scripts.
 
 ## `wait()` takes SECONDS, not tenths of a second
@@ -115,4 +115,4 @@ event's arguments as varargs: `function(a, b, ...)`.
 | `echo Hello` | `echo("Hello")` |
 | `${Math.Calc[${a}+${b}]}` | `a + b` (native Lua math) |
 
-Next: `07_Examples.md`.
+Next: [`07_Examples.md`](07_Examples.md).

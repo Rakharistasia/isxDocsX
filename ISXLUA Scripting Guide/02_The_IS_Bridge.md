@@ -2,12 +2,12 @@
 
 Every script gets a global table named **`IS`** -- your direct line into
 InnerSpace and LavishScript. Most of the time you will use the object model
-(`03_Object_Model.md`) instead, because it is cleaner and returns real Lua
+([`03_Object_Model.md`](03_Object_Model.md)) instead, because it is cleaner and returns real Lua
 values. But `IS.Execute` and `IS.Parse` are the escape hatches: anything the
 object model cannot express, you can still do through the string API.
 
 `IS` also holds the console output helpers and the event functions (events are
-covered separately in `04_Timing_And_Events.md`).
+covered separately in [`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 
 ## `IS.Execute(command)` -- run a command
 
@@ -50,8 +50,8 @@ your loaded game extension provides.)
 that returns a scalar with no arguments but *also* takes arguments for a
 different result. The object model gives you the native scalar and you cannot
 then pass arguments to it; `IS.Parse("${...}")` lets you build the full
-expression by hand. This is uncommon -- see `03_Object_Model.md` and
-`06_Migration_Gotchas.md`.
+expression by hand. This is uncommon -- see [`03_Object_Model.md`](03_Object_Model.md) and
+[`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
 
 ## `print(...)` and `echo(...)` -- console output
 
@@ -84,7 +84,7 @@ globals:
 IS.WarnUnknownGlobals(false)   -- silence the warning
 ```
 
-See `03_Object_Model.md` for how bare-global lookup works.
+See [`03_Object_Model.md`](03_Object_Model.md) for how bare-global lookup works.
 
 ## `IS.SaveTable(name, tbl)` / `IS.LoadTable(name)` -- persistent storage
 
@@ -117,7 +117,7 @@ echo("run #" .. state.runs)
   (Copy scalar values out of object wrappers before saving them.)
 
 Under the hood this uses the bundled `serpent` library, so a saved file is
-human-readable, loadable Lua. See `05_Bundled_Libraries.md` if you want to drive
+human-readable, loadable Lua. See [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md) if you want to drive
 the serialization yourself (for example to persist as JSON instead).
 
 ## The reverse bridge -- calling Lua from LavishScript
@@ -127,7 +127,7 @@ Everything so far goes **Lua -> LavishScript**: your script reads
 goes the other way --
 it lets a LavishScript program (an `.iss` script, another extension, or a line you
 type at the console) **call a Lua function you have written and get its return
-value back**. This is the direct call/return path; events (`04_Timing_And_Events.md`)
+value back**. This is the direct call/return path; events ([`04_Timing_And_Events.md`](04_Timing_And_Events.md))
 are the other LS -> Lua direction, but they are one-way notifications with no
 return value.
 
@@ -225,11 +225,11 @@ traceback; `${ISXLUA.Call[...]}` then yields NULL and `luacall` reports the erro
 > register a function that takes a single string and parse it yourself.
 
 For a complete, game-specific worked example of the reverse bridge, see
-`07_Examples.md`.
+[`07_Examples.md`](07_Examples.md).
 
 ## The event functions
 
 `IS.AttachEvent`, `IS.DetachEvent`, and `IS.FireEvent` also live on the `IS`
-table; they are documented in `04_Timing_And_Events.md`.
+table; they are documented in [`04_Timing_And_Events.md`](04_Timing_And_Events.md).
 
-Next: `03_Object_Model.md`.
+Next: [`03_Object_Model.md`](03_Object_Model.md).

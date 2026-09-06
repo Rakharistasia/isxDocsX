@@ -28,14 +28,14 @@ Read them in order the first time; after that use them as a reference.
 
 | File | What it covers |
 |---|---|
-| **`README.md`** (this file) | Orientation and the file map. |
-| `01_Getting_Started.md` | Running scripts (`lua` / `endlua` / `luas`, and native `run` / `endscript`), script arguments, the `${ISXLUA}` object, what the Lua environment gives you. |
-| `02_The_IS_Bridge.md` | The `IS` global -- `IS.Execute`, `IS.Parse`, `print` / `echo` -- your two escape hatches into LavishScript. |
-| `03_Object_Model.md` | The heart of ISXLUA: bare-global TLOs (`ISXLUA`, plus whatever your loaded game extension provides), `.Member` / `.Member(args)`, `:Method(args)`, native scalar values, the typed getters, `Exists()`, and `obj[i]` indexing. |
-| `04_Timing_And_Events.md` | `wait(seconds)` / `waitframe()`, and the events layer (`IS.AttachEvent` / `IS.DetachEvent` / `IS.FireEvent`) with atomic handlers. |
-| `05_Bundled_Libraries.md` | The `require`-able modules that ship inside ISXLUA (`cjson`, `lfs`, `lpeg`, `serpent`, `inspect`, `json`, `re`) and how to load your own loose modules. |
-| `06_Migration_Gotchas.md` | The differences that will bite a LavishScript scripter moving to Lua. **Read this if you know LavishScript.** |
-| `07_Examples.md` | Complete, runnable scripts -- simple (hello world, reading game data, a wait loop, an event handler) and larger realistic ones that combine them. (These are concrete and game-specific, unlike the generic topics above.) |
+| **[`README.md`](README.md)** (this file) | Orientation and the file map. |
+| [`01_Getting_Started.md`](01_Getting_Started.md) | Running scripts (`lua` / `endlua` / `luas`, and native `run` / `endscript`), script arguments, the `${ISXLUA}` object, what the Lua environment gives you. |
+| [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md) | The `IS` global -- `IS.Execute`, `IS.Parse`, `print` / `echo` -- your two escape hatches into LavishScript. |
+| [`03_Object_Model.md`](03_Object_Model.md) | The heart of ISXLUA: bare-global TLOs (`ISXLUA`, plus whatever your loaded game extension provides), `.Member` / `.Member(args)`, `:Method(args)`, native scalar values, the typed getters, `Exists()`, and `obj[i]` indexing. |
+| [`04_Timing_And_Events.md`](04_Timing_And_Events.md) | `wait(seconds)` / `waitframe()`, and the events layer (`IS.AttachEvent` / `IS.DetachEvent` / `IS.FireEvent`) with atomic handlers. |
+| [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md) | The `require`-able modules that ship inside ISXLUA (`cjson`, `lfs`, `lpeg`, `serpent`, `inspect`, `json`, `re`) and how to load your own loose modules. |
+| [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md) | The differences that will bite a LavishScript scripter moving to Lua. **Read this if you know LavishScript.** |
+| [`07_Examples.md`](07_Examples.md) | Complete, runnable scripts -- simple (hello world, reading game data, a wait loop, an event handler) and larger realistic ones that combine them. (These are concrete and game-specific, unlike the generic topics above.) |
 
 ## The five-minute version
 
@@ -50,7 +50,7 @@ Read them in order the first time; after that use them as a reference.
 - **Scalar results come back as real Lua values** (numbers, strings, booleans),
   so `SomeTLO.SomeNumber == 95` and `ISXLUA.Version:upper()` work directly.
 - **`wait()` takes SECONDS**, not tenths of a second like LavishScript.
-- Coming from LavishScript? Read `06_Migration_Gotchas.md` before anything else.
+- Coming from LavishScript? Read [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md) before anything else.
 
 ## A note on scope
 

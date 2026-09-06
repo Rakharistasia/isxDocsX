@@ -38,7 +38,7 @@ The `.lua` extension is optional -- `lua hello` and `lua hello.lua` are the same
 Note that you use `echo(...)` (or `print(...)`), **not** Lua's raw output. Lua's
 built-in `print` writes to standard output, which is invisible in-game; ISXLUA
 replaces `print` and adds `echo` so both go to the InnerSpace console. See
-`02_The_IS_Bridge.md`.
+[`02_The_IS_Bridge.md`](02_The_IS_Bridge.md).
 
 ## Running and stopping scripts
 
@@ -152,15 +152,15 @@ if ISXLUA.IsReady then echo("ISXLUA is ready") end
 - **Lua 5.4.9**, the full standard library (`string`, `table`, `math`, `os`,
   `io`, `coroutine`, `utf8`, `package`, ...). ISXLUA does not currently sandbox
   the standard library.
-- **`echo` / `print`** -- console output (see `02_The_IS_Bridge.md`).
+- **`echo` / `print`** -- console output (see [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md)).
 - **`wait(seconds)` / `waitframe()` / `waituntil(condfn, timeout)`** -- cooperative
-  timing and condition waits (see `04_Timing_And_Events.md`).
+  timing and condition waits (see [`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 - **The `IS` bridge** -- `IS.Execute`, `IS.Parse`, the event functions, and
-  `IS.SaveTable` / `IS.LoadTable` for persistent storage (`02_The_IS_Bridge.md`,
-  `04_Timing_And_Events.md`).
+  `IS.SaveTable` / `IS.LoadTable` for persistent storage ([`02_The_IS_Bridge.md`](02_The_IS_Bridge.md),
+  [`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 - **The object model** -- bare-global TLOs and generic member/method access
-  (`03_Object_Model.md`).
+  ([`03_Object_Model.md`](03_Object_Model.md)).
 - **Bundled libraries** -- `require("cjson")`, `require("serpent")`, and more
-  (`05_Bundled_Libraries.md`).
+  ([`05_Bundled_Libraries.md`](05_Bundled_Libraries.md)).
 
-Next: `02_The_IS_Bridge.md`.
+Next: [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md).

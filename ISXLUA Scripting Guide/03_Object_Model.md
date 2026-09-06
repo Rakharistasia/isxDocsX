@@ -11,7 +11,7 @@ automatically available.
 > the real top-level objects, members, and methods your loaded game extension
 > provides (see that extension's own scripting guide). The one concrete top-level
 > object ISXLUA itself always provides is `ISXLUA` (its status object), used below
-> where a real example helps. `07_Examples.md` shows complete, game-specific
+> where a real example helps. [`07_Examples.md`](07_Examples.md) shows complete, game-specific
 > scripts.
 
 ## Top-level objects are bare Lua globals
@@ -202,11 +202,11 @@ if Exists(o) then echo(o.SomeMember) end
 If you only need a value, copy it out as a native scalar *before* the wait (scalar
 members are native Lua values, so they are safe to keep).
 
-This rule is important enough that it also appears in `06_Migration_Gotchas.md`.
+This rule is important enough that it also appears in [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
 
 ## The escape hatch
 
 Anything the object model cannot express, you can still do with `IS.Execute` and
-`IS.Parse` (`02_The_IS_Bridge.md`). The two coexist -- mix them freely.
+`IS.Parse` ([`02_The_IS_Bridge.md`](02_The_IS_Bridge.md)). The two coexist -- mix them freely.
 
-Next: `04_Timing_And_Events.md`.
+Next: [`04_Timing_And_Events.md`](04_Timing_And_Events.md).

@@ -19,7 +19,7 @@ waitframe()   -- resume next frame
 > **Coming from LavishScript?** LavishScript's `wait` counts **tenths of a
 > second**; ISXLUA's `wait` counts **seconds**. An LS `wait 10` (one second)
 > becomes `wait(1)` here. This is the single most common porting mistake -- see
-> `06_Migration_Gotchas.md`.
+> [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
 
 While a script is waiting, other scripts keep running and the game keeps ticking;
 your script simply resumes when its time is up. A typical polling loop looks like:
@@ -39,7 +39,7 @@ nothing between iterations.
 **Remember the object-lifetime rule:** do not keep an object wrapper across a
 `wait()` / `waitframe()`. Re-fetch it from its TLO afterward, or copy out scalar
 values (which are native and safe to keep) before you wait. See
-`03_Object_Model.md`.
+[`03_Object_Model.md`](03_Object_Model.md).
 
 ## `waituntil(condfn, timeoutSeconds)` -- wait for a condition
 
@@ -194,4 +194,4 @@ You can have up to **64 distinct events** attached at once (across all scripts).
 Attaching handlers to the *same* event does not count against this -- only the
 number of different event names does.
 
-Next: `05_Bundled_Libraries.md`.
+Next: [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md).
