@@ -324,16 +324,17 @@ end)
 
 ### `IS.HttpPost(url, body [, contentType], callback)`
 
-`body` is a string (numbers are accepted and converted to text). The optional
-`contentType` (for example `"application/json"`) is passed as the request's content
-type when given:
+`body` can be a **string**, a number (converted to text), or a **table** -- and a
+table is **auto-encoded** for you. The optional `contentType` (for example
+`"application/json"`) is sent as the request's content type when given.
+
+**Table body -> JSON (the default).** Pass a table and it is encoded as JSON with the
+bundled `cjson`, and the content type defaults to `application/json` automatically --
+you do not have to encode or set the header yourself:
 
 ```lua
--- POST JSON (encode with the bundled cjson -- see 06_Bundled_Libraries.md):
-local cjson = require("cjson")
-local payload = cjson.encode({ name = "test", value = 42 })
-
-IS.HttpPost("https://example.com/api/report", payload, "application/json",
+-- POST JSON -- just pass the table; ISXLUA encodes it and sets Content-Type:
+IS.HttpPost("https://example.com/api/report", { name = "test", value = 42 },
     function(ok, status, body)
         if ok then
             echo("reported ok")
@@ -341,11 +342,41 @@ IS.HttpPost("https://example.com/api/report", payload, "application/json",
             echo("report failed: " .. status)
         end
     end)
+```
+
+**Table body -> form fields.** If you pass a content type that names form encoding
+(`"application/x-www-form-urlencoded"`), the same table is instead url-encoded into
+`key=value&...` pairs:
+
+```lua
+IS.HttpPost("https://example.com/submit", { user = "bob", score = 10 },
+    "application/x-www-form-urlencoded",
+    function(ok, status, body) echo("done: " .. tostring(ok)) end)
+```
+
+**What can be encoded.** For JSON, the same rules as the bundled `cjson` apply
+(see [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md)); a value that cannot be
+serialized (a function or userdata) raises a clear error. For form encoding the table
+must be **flat**: keys are strings/numbers, values are strings/numbers/booleans, and a
+nested table (or a function/userdata) raises a clear error.
+
+**String body (unchanged).** A string (or number) body is sent as-is, with the content
+type you give -- or none:
+
+```lua
+-- Explicit string body with a content type:
+IS.HttpPost("https://example.com/api/raw", "<xml/>", "text/xml",
+    function(ok, status, body) echo("done: " .. tostring(ok)) end)
 
 -- Without a content type, omit it (the callback is then the third argument):
 IS.HttpPost("https://example.com/hook", "raw body text", function(ok, status, body)
     echo("done: " .. tostring(ok))
 end)
+
+-- You can still pre-encode yourself if you prefer (see 06_Bundled_Libraries.md):
+local cjson = require("cjson")
+IS.HttpPost("https://example.com/api/report", cjson.encode({ a = 1 }),
+    "application/json", function(ok, status, body) end)
 ```
 
 ### The callback runs atomically -- no `wait()` inside it
@@ -365,10 +396,12 @@ console (with a traceback) and never crashes the game.
 - **Timeouts / connection failures.** A request that gets no response within a fixed
   timeout (about 30 seconds), or that fails to connect at all, completes with
   `ok = false, status = 0` so your callback always runs exactly once.
-- **Correlation caveat.** Responses are matched to requests by URL. If you fire
-  several requests to the *exact same URL* at once, ISXLUA cannot tell their responses
-  apart and may deliver them to the callbacks in a different order. Requests to
-  different URLs are unaffected.
+- **Concurrent requests are matched correctly.** Each request is tracked
+  individually, so you can fire several at once -- even to the *exact same URL* -- and
+  every callback receives its own response. (If a request is redirected to a different
+  address, correlation for that one request falls back to matching by URL, which is
+  only ambiguous in the rare case of several redirected same-URL requests in flight at
+  once.)
 
 ## Sharing data between scripts
 
