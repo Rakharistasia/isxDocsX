@@ -25,11 +25,11 @@ All of these are MIT-licensed.
 ```lua
 local cjson = require("cjson")
 
-local s = cjson.encode({ name = "Fippy", level = 95, alive = true })
-echo(s)                              -- {"name":"Fippy","level":95,"alive":true}
+local s = cjson.encode({ name = "example", count = 3, enabled = true })
+echo(s)                              -- {"name":"example","count":3,"enabled":true}
 
 local t = cjson.decode(s)
-echo(t.name .. " is level " .. t.level)
+echo(t.name .. " has count " .. t.count)
 ```
 
 Use `cjson.safe` when you are decoding data you do not control and do not want an
@@ -82,7 +82,7 @@ if ok then echo("runs so far: " .. restored.runs) end
 
 ```lua
 local inspect = require("inspect")
-echo(inspect(Me.Name))               -- see exactly what you have
+echo(inspect(ISXLUA.Version))         -- see exactly what you have
 echo(inspect({ 1, 2, nested = { x = true } }))
 ```
 

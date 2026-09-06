@@ -16,8 +16,8 @@ console. Returns the command's integer result.
 
 ```lua
 IS.Execute("echo hello from a command")
-IS.Execute("ext isxeq2")            -- load another extension
-IS.Execute("target Fippy")          -- run a game command
+IS.Execute("ext yourgame")          -- load a game extension
+IS.Execute("run otherscript")       -- run another script
 ```
 
 Use this to trigger commands that have no object-model equivalent (loading
@@ -29,15 +29,18 @@ Evaluates a LavishScript data sequence and returns the result as a string, or
 `nil` if it could not be evaluated. **Pass the full `${...}` form.**
 
 ```lua
-local name = IS.Parse("${Me.Name}")
-echo("You are " .. tostring(name))
+local ver = IS.Parse("${ISXLUA.Version}")
+echo("ISXLUA version is " .. tostring(ver))
 
-local n = tonumber(IS.Parse("${Me.Level}"))
+-- A numeric member: IS.Parse still returns text, so convert it yourself.
+local n = tonumber(IS.Parse("${SomeTLO.SomeNumber}"))
 ```
 
 `IS.Parse` always returns a **string** (or nil), so convert it yourself with
 `tonumber` when you need a number. Compare this with the object model, where
-`Me.Level` comes back as a real Lua number already.
+`SomeTLO.SomeNumber` comes back as a real Lua number already. (`SomeTLO` /
+`SomeNumber` here are placeholders -- use the real top-level objects and members
+your loaded game extension provides.)
 
 > **8 KB limit.** `IS.Parse` returns at most 8 KB of text; a longer result comes
 > back as `nil` rather than truncated. The object model does not have this limit
@@ -58,8 +61,8 @@ separated by tabs.
 
 ```lua
 print("x", 1, true)          -- x    1    true
-echo("Level is " .. Me.Level)
-echo(Me)                     -- object wrappers coerce to text
+echo("Version is " .. ISXLUA.Version)
+echo(SomeObject)             -- object wrappers coerce to text
 ```
 
 They are interchangeable; `echo` exists because it reads naturally to
@@ -119,8 +122,9 @@ the serialization yourself (for example to persist as JSON instead).
 
 ## The reverse bridge -- calling Lua from LavishScript
 
-Everything so far goes **Lua -> LavishScript**: your script reads `Me.Level`,
-runs commands, evaluates `${...}`. The **reverse bridge** goes the other way --
+Everything so far goes **Lua -> LavishScript**: your script reads
+`SomeTLO.SomeMember`, runs commands, evaluates `${...}`. The **reverse bridge**
+goes the other way --
 it lets a LavishScript program (an `.iss` script, another extension, or a line you
 type at the console) **call a Lua function you have written and get its return
 value back**. This is the direct call/return path; events (`04_Timing_And_Events.md`)

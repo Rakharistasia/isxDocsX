@@ -16,7 +16,8 @@ version carries a build-time suffix so you can tell same-day rebuilds apart;
 `${ISXLUA.Version}` reports the same string.
 
 ISXLUA attaches to no particular game -- it is a Lua runtime for InnerSpace. To
-automate a game you also load that game's extension (for example `ext isxeq2`).
+automate a game you also load that game's own InnerSpace extension (its `ext`
+command).
 
 ## Your first script
 
@@ -122,8 +123,8 @@ echo(a .. " / " .. b)
 ```
 
 Because the `lua` command parses LavishScript first, a `${...}` in your arguments
-is evaluated before the script sees it. For example `lua greet ${Me.Name}` passes
-your character's name as `args[1]`.
+is evaluated before the script sees it. For example `lua showver ${ISXLUA.Version}`
+passes ISXLUA's version string as `args[1]`.
 
 ## The `${ISXLUA}` object
 

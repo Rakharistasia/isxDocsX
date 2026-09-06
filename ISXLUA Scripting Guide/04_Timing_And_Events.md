@@ -27,8 +27,8 @@ your script simply resumes when its time is up. A typical polling loop looks lik
 ```lua
 local running = true
 while running do
-    -- do a little work
-    echo("Health: " .. Me.Health)
+    -- do a little work (read a value your game extension provides)
+    echo("value: " .. SomeTLO.SomeNumber)
     wait(1)
 end
 ```
@@ -108,8 +108,10 @@ Plain `wait(seconds)` with no condition returns nothing, exactly as before.
 
 An event lets you run a Lua function when something happens -- a chat line
 arrives, a zone changes, and so on. The set of available events comes from the
-game extension you have loaded (for example ISXEQ2's `EQ2_onIncomingChat`); the
-mechanism below is the same for all of them.
+game extension you have loaded (each names its own events, for example a chat or
+zone event); the mechanism below is the same for all of them. The names below
+(`GameExtension_onSomething`) are placeholders -- use the real event names your
+loaded extension documents.
 
 **A Lua function *is* the event target.** There is no separate "atom" concept to
 declare as in LavishScript -- you just hand ISXLUA a function.
@@ -120,8 +122,8 @@ Registers `fn` to be called whenever the named event fires. Your function
 receives the event's arguments as **varargs**, each a string:
 
 ```lua
-IS.AttachEvent("EQ2_onIncomingChat", function(text, ...)
-    echo("chat: " .. text)
+IS.AttachEvent("GameExtension_onSomething", function(text, ...)
+    echo("event fired: " .. tostring(text))
 end)
 ```
 
@@ -137,10 +139,10 @@ Removes a handler you previously attached (matched by identity). Returns `true` 
 one was removed.
 
 ```lua
-local function onChat(text) echo("chat: " .. text) end
-IS.AttachEvent("EQ2_onIncomingChat", onChat)
+local function onSomething(text) echo("event: " .. tostring(text)) end
+IS.AttachEvent("GameExtension_onSomething", onSomething)
 -- ...later...
-IS.DetachEvent("EQ2_onIncomingChat", onChat)
+IS.DetachEvent("GameExtension_onSomething", onSomething)
 ```
 
 Keep the function in a variable if you intend to detach it -- you need the same
@@ -168,7 +170,7 @@ some data into a table, and let your main script loop (which *can* wait) act on 
 ```lua
 local pending = {}
 
-IS.AttachEvent("EQ2_onIncomingChat", function(text)
+IS.AttachEvent("GameExtension_onSomething", function(text)
     -- fast, no waiting -- just record it
     pending[#pending + 1] = text
 end)
@@ -176,8 +178,8 @@ end)
 -- main loop handles the queued work, and here waiting is fine
 while true do
     while #pending > 0 do
-        local line = table.remove(pending, 1)
-        echo("saw: " .. line)
+        local item = table.remove(pending, 1)
+        echo("saw: " .. tostring(item))
     end
     wait(0.5)
 end

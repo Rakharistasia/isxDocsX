@@ -2,19 +2,27 @@
 
 This is the heart of ISXLUA. A Lua script reaches **every** LavishScript
 top-level object (TLO) and datatype directly -- no setup, no per-game code. If a
-game extension exposes `${Me.Name}` to LavishScript, you read it in Lua as
-`Me.Name`. Whatever ISXEQ2, ISXEVE, or any other loaded extension registers is
+game extension exposes `${SomeTLO.SomeMember}` to LavishScript, you read it in Lua
+as `SomeTLO.SomeMember`. Whatever your loaded game extension registers is
 automatically available.
+
+> **Placeholders in this chapter.** Names like `SomeTLO`, `SomeObject`,
+> `SomeMember`, `SomeNumber`, and `SomeMethod` are **placeholders** -- substitute
+> the real top-level objects, members, and methods your loaded game extension
+> provides (see that extension's own scripting guide). The one concrete top-level
+> object ISXLUA itself always provides is `ISXLUA` (its status object), used below
+> where a real example helps. `07_Examples.md` shows complete, game-specific
+> scripts.
 
 ## Top-level objects are bare Lua globals
 
-The TLOs you know from LavishScript are just Lua globals: `Me`, `Actor`, `EQ2`,
-`Target`, `Zone`, `ISXLUA`, and so on.
+The TLOs you know from LavishScript are just Lua globals: `ISXLUA`, plus every
+top-level object your loaded game extension registers.
 
 ```lua
-echo(Me.Name)
-echo(Target.Name)
-echo(EQ2.ServerName)
+echo(ISXLUA.Version)
+echo(SomeTLO.SomeMember)
+echo(SomeTLO(1).SomeMember)
 ```
 
 A real Lua global (or one you define) shadows a TLO of the same name normally --
@@ -28,21 +36,21 @@ Read a member with dot syntax. If the member takes arguments, pass them in
 **parentheses** -- not the square brackets LavishScript uses.
 
 ```lua
--- LavishScript:  ${Me.Ability[Fireball].Name}
+-- LavishScript:  ${SomeTLO.Lookup[name].SomeMember}
 -- Lua:
-Me.Ability("Fireball").Name
+SomeTLO.Lookup("name").SomeMember
 
--- LavishScript:  ${Actor[5]}
+-- LavishScript:  ${SomeTLO[1]}
 -- Lua:
-Actor(5)
+SomeTLO(1)
 ```
 
 Chaining works the way you would expect -- each member, index, or method result
 you can keep chaining from:
 
 ```lua
-echo(Me.Ability("Fireball").Name)
-echo(Actor(5).Name)
+echo(SomeTLO.Lookup("name").SomeMember)
+echo(SomeTLO(1).SomeMember)
 ```
 
 ## Methods: `obj:Method(args)`
@@ -50,8 +58,8 @@ echo(Actor(5).Name)
 Methods use Lua's colon syntax:
 
 ```lua
-Actor(5):DoubleClick()
-Me:Face()
+ISXLUA:QuietMode()          -- a real, no-argument method
+SomeTLO(1):SomeMethod()     -- your game extension's methods
 ```
 
 (A method is an *action*; a member is a *value*. Same split as LavishScript's
@@ -65,11 +73,11 @@ index resolves to a **scalar** -- an int, float, boolean, or string -- you get a
 directly:
 
 ```lua
-if Me.Level == 95 then ... end
-if Me.Name == "Fippy" then ... end
-if Actor(5).Distance < 10 then ... end
-echo(Me.Name:upper())                 -- Lua string method
-local total = Me.Health + Me.Power     -- arithmetic
+if SomeTLO.SomeNumber == 95 then ... end
+if SomeTLO.SomeText == "ready" then ... end
+if SomeTLO(1).SomeNumber < 10 then ... end
+echo(ISXLUA.Version:upper())              -- a Lua string method on a scalar string
+local total = SomeTLO.SomeNumber + SomeTLO.OtherNumber   -- arithmetic
 ```
 
 You do **not** need `:Int()`, `:Str()`, or `tostring` to compare or use a scalar
@@ -80,13 +88,13 @@ as wrappers.
 
 ## Object wrappers
 
-An object result -- something like `Me.Pet`, `Me.Ability("Fireball")`, or
-`Actor(5)` before you read a scalar off it -- is a wrapper. Wrappers:
+An object result -- something like `SomeTLO.SomeObject`, `SomeTLO.Lookup("name")`,
+or `SomeTLO(1)` before you read a scalar off it -- is a wrapper. Wrappers:
 
 - **Coerce to text** via `tostring()` and `..` (string concatenation), using the
   object's display text:
   ```lua
-  echo("Target: " .. Target)     -- Target coerces to its text
+  echo("Object: " .. SomeTLO(1))     -- the object coerces to its text
   ```
 - **Support numeric operators** (`<`, `<=`, `==`, `+`, `-`, `*`, `/`, `%`, `^`,
   `//`, unary `-`), coercing to a number as needed.
@@ -108,34 +116,35 @@ getter. (You do not need these for scalar members -- those are already native.)
 | `obj:Exists()` | `true` if the object resolved to a real, non-null object. |
 
 ```lua
-local dmg = Me.Ability("Fireball").Damage:Int()
-echo("Fireball is a " .. Actor(5):LSType())     -- e.g. "actor"
+local n = SomeTLO.SomeObject:Int()
+echo("type name: " .. SomeTLO(1):LSType())     -- the object's LavishScript type name
 ```
 
 ### A real member/method always wins over a getter
 
 If a datatype has a real member or method whose name matches a getter, **you get
 the real one**. That is why the type-name helper is `:LSType()` and not `:Type()`
--- many datatypes have a genuine `.Type` member (for an actor, `Actor(5).Type` is
-`PC` / `NPC` / ...). The getters only answer when the type has no member or method
-of that name.
+-- many datatypes have a genuine `.Type` member, so `SomeObject.Type` returns that
+real member, not the getter. The getters only answer when the type has no member
+or method of that name.
 
 ## Testing whether something EXISTS
 
-This is a hard Lua rule that trips everyone up: **a bare `if Me.Pet then` is
-ALWAYS true.** An absent object (no pet, no target) comes back as a *null object
-wrapper*, and a Lua userdata can never be falsy -- so the `if` always passes.
+This is a hard Lua rule that trips everyone up: **a bare
+`if SomeTLO.SomeOptionalObject then` is ALWAYS true.** An absent object (nothing
+there) comes back as a *null object wrapper*, and a Lua userdata can never be
+falsy -- so the `if` always passes.
 
 Test presence explicitly with the global **`Exists(x)`** or the **`:Exists()`**
 method:
 
 ```lua
-if Exists(Me.Pet) then           -- true only if you actually have a pet
-    echo("Pet: " .. Me.Pet.Name)
+if Exists(SomeTLO.SomeOptionalObject) then     -- true only if it is really there
+    echo("got it: " .. SomeTLO.SomeOptionalObject.SomeMember)
 end
 
-if Me.Target:Exists() then ... end     -- same idea, method form
-if Me.Target:IsNull() then ... end     -- the negative
+if SomeTLO.SomeOptionalObject:Exists() then ... end     -- same idea, method form
+if SomeTLO.SomeOptionalObject:IsNull() then ... end     -- the negative
 ```
 
 `Exists(x)` rules:
@@ -148,8 +157,8 @@ if Me.Target:IsNull() then ... end     -- the negative
 
 ## NULL vs. typo: what raises an error
 
-- A member or method that **fails to resolve** (a missing pet, an actor that is
-  not there) yields a **null object wrapper** -- `:IsNull()` is `true`,
+- A member or method that **fails to resolve** (a member that is absent, an object
+  that is not there) yields a **null object wrapper** -- `:IsNull()` is `true`,
   `tostring` is `"NULL"`, the getters return `0` / `false` / `""`. It is **not**
   an error, and chaining off it stays safe.
 - A genuinely **misspelled** member or method name (one the datatype does not
@@ -164,7 +173,7 @@ A **numeric** key uses the LavishScript index operator:
 
 ```lua
 SomeCollection[1]
-Actor(5)[1]
+SomeTLO(1)[1]
 ```
 
 String keys are unchanged -- `obj.Member` is member access and `obj:Method()` is a
@@ -173,7 +182,7 @@ method call. Remember that member *arguments* still use parentheses
 
 > Numeric indexing is currently wired on directly-resolved object wrappers. If you
 > reach an object *through* an eager member (for example
-> `Me.SomeCollection[1]`), index the resolved object explicitly or use the
+> `SomeTLO.SomeCollection[1]`), index the resolved object explicitly or use the
 > argument form instead.
 
 ## Do not hold an object across a `wait()`
@@ -183,11 +192,11 @@ script yields. After a `wait()` or `waitframe()`, **re-fetch** from the TLO rath
 than reusing a wrapper you captured earlier:
 
 ```lua
-local a = Actor(5)
+local o = SomeTLO(1)
 wait(1)
--- Don't trust `a` now. Re-fetch:
-a = Actor(5)
-if Exists(a) then echo(a.Name) end
+-- Don't trust `o` now. Re-fetch:
+o = SomeTLO(1)
+if Exists(o) then echo(o.SomeMember) end
 ```
 
 If you only need a value, copy it out as a native scalar *before* the wait (scalar

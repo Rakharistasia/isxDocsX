@@ -3,6 +3,11 @@
 If you already write LavishScript, these are the differences that will bite you
 when you move to Lua under ISXLUA. Read this chapter before porting a script.
 
+> Names like `SomeTLO`, `SomeObject`, `SomeMember`, `SomeNumber`, and
+> `SomeMethod` below are **placeholders** -- substitute the real top-level objects,
+> members, and methods your loaded game extension provides. `07_Examples.md` shows
+> complete, game-specific scripts.
+
 ## `wait()` takes SECONDS, not tenths of a second
 
 LavishScript's `wait` counts tenths of a second; ISXLUA's `wait` counts seconds
@@ -20,12 +25,12 @@ frame.
 ## Member arguments use parentheses `()`, not brackets `[]`
 
 ```
-LavishScript:  ${Me.Ability[Fireball].Name}
-ISXLUA:        Me.Ability("Fireball").Name
+LavishScript:  ${SomeTLO.Lookup[name].SomeMember}
+ISXLUA:        SomeTLO.Lookup("name").SomeMember
 ```
 
-Index / TLO arguments too: `${Actor[5]}` becomes `Actor(5)`. Methods use a colon:
-`Actor(5):DoubleClick()`.
+Index / TLO arguments too: `${SomeTLO[1]}` becomes `SomeTLO(1)`. Methods use a
+colon: `SomeTLO(1):SomeMethod()`.
 
 ## An unknown bare global returns `nil` (a typo does not error at the global lookup)
 
@@ -37,7 +42,7 @@ object that *did* resolve **does** raise a Lua error, with a traceback.
 ## Do not hold an object across a `wait()`
 
 Object wrappers point at frame-scoped LavishScript data that can go stale after a
-yield. Re-fetch from the TLO after a `wait()` (for example, read `Actor(id)`
+yield. Re-fetch from the TLO after a `wait()` (for example, read `SomeTLO(id)`
 again) rather than reusing a wrapper you captured before the wait. If you only
 need a value, copy it out as a native scalar before waiting.
 
@@ -46,9 +51,9 @@ need a value, copy it out as a native scalar before waiting.
 The value-helpers are `:Int()`, `:Number()`, `:Bool()`, `:Str()`, `:LSType()`,
 `:IsNull()`, and `:Exists()`. If a datatype has a member or method of the same
 name, **you get the game one**. That is why the type-name helper is `:LSType()`
-(not `:Type`) -- many datatypes have a real `.Type` member (for example
-`Actor(5).Type` is `PC` / `NPC` / ...). The helpers answer only when the type has
-no such member or method.
+(not `:Type`) -- many datatypes have a real `.Type` member, so `SomeObject.Type`
+returns that real member. The helpers answer only when the type has no such member
+or method.
 
 ## Scalar values are NATIVE Lua values (numbers / strings / booleans)
 
@@ -56,10 +61,10 @@ A member or TLO that resolves to a scalar comes back as a real Lua value, so `==
 all operators, and Lua's own string/number methods work directly:
 
 ```lua
-Me.Level == 95
-Me.Name == "Fippy"
-Actor(5).Distance < 10
-Me.Name:upper()
+SomeTLO.SomeNumber == 95
+SomeTLO.SomeText == "ready"
+SomeTLO(1).SomeNumber < 10
+ISXLUA.Version:upper()
 ```
 
 Only **object** results stay as wrappers (they chain, coerce via `tostring()` /
@@ -71,21 +76,22 @@ arguments for a different result comes back as the native scalar (so you cannot
 then call it with arguments). For that case, use `IS.Parse("${...}")` to build the
 full expression by hand.
 
-## Testing whether an object EXISTS -- `if Me.Pet then` is ALWAYS true
+## Testing whether an object EXISTS -- `if SomeTLO.SomeOptionalObject then` is ALWAYS true
 
-An absent object (no pet, no target) comes back as a NULL object wrapper, and a
-Lua userdata can never be falsy -- so a bare `if Me.Pet then` is always truthy.
-Test presence with the `Exists()` global or the `:Exists()` method:
+An absent object (nothing there) comes back as a NULL object wrapper, and a
+Lua userdata can never be falsy -- so a bare `if SomeTLO.SomeOptionalObject then`
+is always truthy. Test presence with the `Exists()` global or the `:Exists()`
+method:
 
 ```lua
-if Exists(Me.Pet) then ... end        -- true only if there is a real pet
-if Me.Pet:Exists() then ... end        -- same
-if Me.Pet:IsNull() then ... end        -- the negative
+if Exists(SomeTLO.SomeOptionalObject) then ... end     -- true only if it is really there
+if SomeTLO.SomeOptionalObject:Exists() then ... end     -- same
+if SomeTLO.SomeOptionalObject:IsNull() then ... end     -- the negative
 ```
 
 (This is a hard Lua rule; a null object cannot be turned into `nil` generically,
-because an absent `Pet` is indistinguishable from an argument-needing member like
-`Ability` at a zero-argument probe.)
+because an absent object is indistinguishable from an argument-needing member at a
+zero-argument probe.)
 
 ## No `wait()` / `waitframe()` inside an event handler
 
@@ -99,11 +105,11 @@ event's arguments as varargs: `function(a, b, ...)`.
 
 | LavishScript | ISXLUA (Lua) |
 |---|---|
-| `${Me.Name}` | `Me.Name` |
-| `${Me.Ability[Fireball].Name}` | `Me.Ability("Fireball").Name` |
-| `${Actor[5].Distance}` | `Actor(5).Distance` |
-| `Actor[5]:DoubleClick` | `Actor(5):DoubleClick()` |
-| `${Target(exists)}` | `Exists(Target)` |
+| `${SomeTLO.SomeMember}` | `SomeTLO.SomeMember` |
+| `${SomeTLO.Lookup[name].SomeMember}` | `SomeTLO.Lookup("name").SomeMember` |
+| `${SomeTLO[1].SomeNumber}` | `SomeTLO(1).SomeNumber` |
+| `SomeTLO[1]:SomeMethod` | `SomeTLO(1):SomeMethod()` |
+| `${SomeObject(exists)}` | `Exists(SomeObject)` |
 | `wait 10` (1 second) | `wait(1)` |
 | `wait 5` (0.5 second) | `wait(0.5)` |
 | `echo Hello` | `echo("Hello")` |
