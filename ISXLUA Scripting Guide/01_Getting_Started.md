@@ -235,6 +235,6 @@ if ISXLUA.IsReady then echo("ISXLUA is ready") end
   message bus (`IS.Share` / `IS.Shared`, `IS.Publish` / `IS.Subscribe`) that copy
   data between otherwise-isolated scripts ([`04_Timing_And_Events.md`](04_Timing_And_Events.md)).
 - **Bundled libraries** -- `require("cjson")`, `require("serpent")`, and more
-  ([`05_Bundled_Libraries.md`](05_Bundled_Libraries.md)).
+  ([`06_Bundled_Libraries.md`](06_Bundled_Libraries.md)).
 
 Next: [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md).

@@ -51,7 +51,7 @@ that returns a scalar with no arguments but *also* takes arguments for a
 different result. The object model gives you the native scalar and you cannot
 then pass arguments to it; `IS.Parse("${...}")` lets you build the full
 expression by hand. This is uncommon -- see [`03_Object_Model.md`](03_Object_Model.md) and
-[`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
+[`07_Migration_Gotchas.md`](07_Migration_Gotchas.md).
 
 ## `print(...)` and `echo(...)` -- console output
 
@@ -117,7 +117,7 @@ echo("run #" .. state.runs)
   (Copy scalar values out of object wrappers before saving them.)
 
 Under the hood this uses the bundled `serpent` library, so a saved file is
-human-readable, loadable Lua. See [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md) if you want to drive
+human-readable, loadable Lua. See [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md) if you want to drive
 the serialization yourself (for example to persist as JSON instead).
 
 ## `IS.Settings(name)` -- a hierarchical, persistent config store
@@ -326,7 +326,7 @@ traceback; `${ISXLUA.Call[...]}` then yields NULL and `luacall` reports the erro
 > register a function that takes a single string and parse it yourself.
 
 For a complete, game-specific worked example of the reverse bridge, see
-[`07_Examples.md`](07_Examples.md).
+[`08_Examples.md`](08_Examples.md).
 
 ## The event and async functions
 

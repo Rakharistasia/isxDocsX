@@ -268,7 +268,7 @@ Why it is shaped this way:
   back elsewhere: `local ok, data = serpent.load(io.open(saveFile):read("a"))`.
 
 Swap `serpent` for `cjson` if you would rather persist JSON -- see
-[`05_Bundled_Libraries.md`](05_Bundled_Libraries.md).
+[`06_Bundled_Libraries.md`](06_Bundled_Libraries.md).
 
 ### Reverse bridge: offloading a decision to Lua
 
@@ -358,3 +358,88 @@ Why it is shaped this way:
 - **Return types map through.** `IsSafeToPull` returns a Lua boolean, usable
   directly in an LavishScript `if`; `NearestNPCName` returns a string, or nothing
   (NULL) when there is no target.
+
+### A GUI: live character stats (ISXEQ2)
+
+A small window that shows your character's health, power, and level, refreshes
+them on a timer, and has a **Refresh** button wired straight to a Lua function.
+The window is built from a Lua table with the bundled `lgui2` module
+([`05_Building_GUIs.md`](05_Building_GUIs.md)) -- no `.json` file needed.
+
+```lua
+-- charpanel.lua
+-- A live character-stats window for EverQuest II via ISXEQ2 + lgui2.
+-- Run with:  lua charpanel     (close the window, or:  endlua charpanel)
+
+local gui = require("lgui2")
+
+-- Gate on ISXEQ2 being loaded and ready before touching Me.
+IS.WarnUnknownGlobals(false)
+if not Exists(Extension("ISXEQ2")) then
+    IS.Execute("ext isxeq2")
+end
+if not waituntil(function() return Exists(Extension("ISXEQ2")) end, 30) then
+    echo("ERROR: ISXEQ2 failed to load.")
+    return
+end
+if not waituntil(function() local e = ISXEQ2; return e ~= nil and e.IsReady end, 30) then
+    echo("ERROR: ISXEQ2 not ready.")
+    return
+end
+
+local ui                              -- forward-declared so handlers can see it
+
+-- Re-fetch live values and push them into the labels. Never fetch across a wait --
+-- read Me fresh each time this runs.
+local function refresh()
+    ui:element("hpText"):setText(string.format("Health: %s%%", tostring(Me.Health)))
+    ui:element("pwText"):setText(string.format("Power:  %s%%", tostring(Me.Power)))
+    ui:element("lvText"):setText(string.format("Level:  %s", tostring(Me.Level)))
+end
+
+ui = gui.load{
+    elements = {
+        {
+            type = "window",
+            name = "charPanel",
+            title = "Character",
+            content = {
+                type = "stackpanel",
+                orientation = "vertical",
+                children = {
+                    { type = "textblock", name = "hpText", content = "Health: --" },
+                    { type = "textblock", name = "pwText", content = "Power:  --" },
+                    { type = "textblock", name = "lvText", content = "Level:  --" },
+                    { type = "button",    name = "refreshBtn", content = "Refresh",
+                      onPress = function() refresh() end },
+                    { type = "button",    name = "closeBtn", content = "Close",
+                      onPress = function() ui:unload() end },
+                },
+            },
+        },
+    },
+}
+
+refresh()
+
+-- Auto-refresh once a second while the window is open.
+while gui.exists("charPanel") do
+    refresh()
+    wait(1)
+end
+
+echo("charpanel closed")
+```
+
+Why it is shaped this way:
+
+- **The gate runs first**, exactly as in the other ISXEQ2 examples -- nothing reads
+  `Me` until the extension is ready.
+- **The button handlers are trivial and atomic.** `refreshBtn` calls `refresh()`
+  (quick element setters) and `closeBtn` unloads the window; neither waits.
+- **All timing lives in the main loop.** `wait(1)` paces the auto-refresh, and each
+  `refresh()` re-reads `Me.Health` / `Me.Power` / `Me.Level` at that moment rather
+  than reusing values across the wait.
+- **The window builds from a Lua table**, so there is no separate JSON file to ship;
+  `ui:unload()` (from the Close button or `endlua`) tears it down and releases the
+  registered callbacks.

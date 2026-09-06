@@ -3,8 +3,8 @@
 A guide for people who **write Lua scripts** for InnerSpace using **ISXLUA**. It
 covers the Lua-facing API only -- how to run scripts, how the `IS` bridge works,
 how to reach LavishScript top-level objects and datatypes from Lua, how timing
-and events behave, which libraries are bundled, and the gotchas you will hit if
-you are coming from LavishScript. You do not need any source access or C/C++
+and events behave, how to build UIs, which libraries are bundled, and the gotchas
+you will hit if you are coming from LavishScript. You do not need any source access or C/C++
 knowledge to use this guide.
 
 ## What ISXLUA is
@@ -33,9 +33,10 @@ Read them in order the first time; after that use them as a reference.
 | [`02_The_IS_Bridge.md`](02_The_IS_Bridge.md) | The `IS` global -- `IS.Execute` / `IS.Parse` (escape hatches into LavishScript), `print` / `echo`, persistent storage (`IS.SaveTable` / `IS.LoadTable` and the hierarchical `IS.Settings` config store), and the reverse bridge (call Lua from LavishScript). |
 | [`03_Object_Model.md`](03_Object_Model.md) | The heart of ISXLUA: bare-global TLOs (`ISXLUA`, plus whatever your loaded game extension provides), `.Member` / `.Member(args)`, `:Method(args)`, native scalar values, the typed getters, `Exists()`, and `obj[i]` indexing. |
 | [`04_Timing_And_Events.md`](04_Timing_And_Events.md) | `wait(seconds)` / `waitframe()` / `waituntil` / `waitforevent`, timers (`setTimeout` / `setInterval` / `clearTimer`), the events layer (`IS.AttachEvent` / `IS.DetachEvent` / `IS.FireEvent` / `IS.EventSource`) with atomic handlers, sharing data between scripts (the `IS.Share` / `IS.Shared` value store and the `IS.Publish` / `IS.Subscribe` message bus), and asynchronous HTTP (`IS.HttpGet` / `IS.HttpPost` -- "with libisxgames" build only). |
-| [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md) | The `require`-able modules that ship inside ISXLUA (`cjson`, `lfs`, `lpeg`, `serpent`, `inspect`, `json`, `re`) and how to load your own loose modules. |
-| [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md) | The differences that will bite a LavishScript scripter moving to Lua. **Read this if you know LavishScript.** |
-| [`07_Examples.md`](07_Examples.md) | Complete, runnable scripts -- simple (hello world, reading game data, a wait loop, an event handler) and larger realistic ones that combine them. (These are concrete and game-specific, unlike the generic topics above.) |
+| [`05_Building_GUIs.md`](05_Building_GUIs.md) | Building and driving **LavishGUI 2** UIs from Lua with the bundled `lgui2` module -- load a package (a `.json` file or an inline Lua table), find elements, read / set their state, show / hide them, and wire a button straight to a Lua callback. |
+| [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md) | The `require`-able modules that ship inside ISXLUA (`cjson`, `lfs`, `lpeg`, `serpent`, `inspect`, `json`, `re`, `lgui2`) and how to load your own loose modules. |
+| [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md) | The differences that will bite a LavishScript scripter moving to Lua. **Read this if you know LavishScript.** |
+| [`08_Examples.md`](08_Examples.md) | Complete, runnable scripts -- simple (hello world, reading game data, a wait loop, an event handler) and larger realistic ones that combine them. (These are concrete and game-specific, unlike the generic topics above.) |
 
 ## The five-minute version
 
@@ -50,7 +51,7 @@ Read them in order the first time; after that use them as a reference.
 - **Scalar results come back as real Lua values** (numbers, strings, booleans),
   so `SomeTLO.SomeNumber == 95` and `ISXLUA.Version:upper()` work directly.
 - **`wait()` takes SECONDS**, not tenths of a second like LavishScript.
-- Coming from LavishScript? Read [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md) before anything else.
+- Coming from LavishScript? Read [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md) before anything else.
 
 ## A note on scope
 

@@ -19,7 +19,7 @@ waitframe()   -- resume next frame
 > **Coming from LavishScript?** LavishScript's `wait` counts **tenths of a
 > second**; ISXLUA's `wait` counts **seconds**. An LS `wait 10` (one second)
 > becomes `wait(1)` here. This is the single most common porting mistake -- see
-> [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
+> [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md).
 
 While a script is waiting, other scripts keep running and the game keeps ticking;
 your script simply resumes when its time is up. A typical polling loop looks like:
@@ -329,7 +329,7 @@ end)
 type when given:
 
 ```lua
--- POST JSON (encode with the bundled cjson -- see 05_Bundled_Libraries.md):
+-- POST JSON (encode with the bundled cjson -- see 06_Bundled_Libraries.md):
 local cjson = require("cjson")
 local payload = cjson.encode({ name = "test", value = 42 })
 
@@ -451,4 +451,4 @@ You can have up to **64 distinct events** attached at once (across all scripts).
 Attaching handlers to the *same* event does not count against this -- only the
 number of different event names does.
 
-Next: [`05_Bundled_Libraries.md`](05_Bundled_Libraries.md).
+Next: [`05_Building_GUIs.md`](05_Building_GUIs.md).

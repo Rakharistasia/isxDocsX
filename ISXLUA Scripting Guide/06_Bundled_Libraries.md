@@ -19,6 +19,7 @@ All of these are MIT-licensed.
 | `require("inspect")` | Human-readable dump of nested tables (great for debugging). |
 | `require("json")` | A pure-Lua JSON implementation (a lightweight alternative to cjson). |
 | `require("re")` | LPeg's regex-like front-end (uses `lpeg` under the hood). |
+| `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 
 ### JSON with `cjson`
 
@@ -114,4 +115,4 @@ The search covers `mymodule.lua`, `mymodule/init.lua`, and the same under
 `lua_modules`. The bundled modules above resolve first (they are already loaded
 internally), so they never depend on the path.
 
-Next: [`06_Migration_Gotchas.md`](06_Migration_Gotchas.md).
+Next: [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md).
