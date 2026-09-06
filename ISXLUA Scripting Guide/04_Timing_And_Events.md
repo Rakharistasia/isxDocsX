@@ -104,6 +104,43 @@ local met = wait(5, function() return ready() end)
 
 Plain `wait(seconds)` with no condition returns nothing, exactly as before.
 
+## `waitforevent(name, timeoutSeconds)` -- wait for the next event
+
+Sometimes you do not want a handler that runs on *every* occurrence of an event --
+you just want your script to **pause until the next time it fires**, then continue
+inline. `waitforevent` does that: it yields your script until the named event fires,
+then resumes and **returns `true` plus the event's arguments** (each a string). Give
+it an optional **timeout in seconds**; if the event does not fire in time it resumes
+and **returns `false`** instead (and nothing else).
+
+The event names come from whatever game extension you have loaded -- the
+`GameExtension_onSomething` names below are placeholders; use the real ones your
+loaded extension documents. (Events are covered in full [below](#events).)
+
+```lua
+-- Wait up to 10 seconds for the next "something happened" event.
+local fired, a, b = waitforevent("GameExtension_onSomething", 10)
+if fired then
+    echo("it fired; first arg = " .. tostring(a))
+else
+    echo("timed out -- no event within 10 seconds")
+end
+```
+
+**Omit the timeout to wait indefinitely:**
+
+```lua
+local fired, text = waitforevent("GameExtension_onSomething")
+-- with no timeout, fired is always true when it returns
+```
+
+It is a **one-shot** wait -- it returns on the *next* firing only. To react to every
+firing, either call it again in a loop, or attach a persistent handler with
+[`IS.AttachEvent`](#isattacheventname-fn). Like `wait()` and `waituntil()`,
+`waitforevent` **yields**, so you cannot call it inside an event handler or a
+[timer callback](#timers----settimeout-setinterval-cleartimer) (both run
+atomically), and do not hold an object wrapper across it.
+
 ## Events
 
 An event lets you run a Lua function when something happens -- a chat line
@@ -159,6 +196,28 @@ IS.FireEvent("MyScript_onSomething", "payload", 42)
 
 This is handy for your own custom events, or for testing a handler.
 
+### `IS.EventSource()`
+
+Inside a handler, `IS.EventSource()` returns the **object the event came from** --
+LavishScript's event "this" -- as an ISXLUA object, so you can read members off it
+just like any other object result. It returns a NULL object if the event carried no
+source (or if you call it outside a handler), so guard it with `Exists()`.
+
+```lua
+IS.AttachEvent("GameExtension_onSomething", function(text)
+    local src = IS.EventSource()
+    if Exists(src) then
+        echo("from: " .. src.Name)   -- read a member off the originating object
+    end
+end)
+```
+
+This is an **opt-in** accessor: your handler's `(arg1, arg2, ...)` string arguments
+are exactly as before -- the source object is *not* one of them, so nothing about
+existing handlers changes. Call `IS.EventSource()` only in the handlers that need
+it. (For the object model -- `.Member`, `:Method`, `Exists`, the typed getters --
+see [`03_Object_Model.md`](03_Object_Model.md).)
+
 ## Handlers run atomically -- no `wait()` inside them
 
 An event handler runs **atomically**, exactly like a LavishScript atom: it must
@@ -187,6 +246,45 @@ end
 
 Any error thrown inside a handler is printed to the console -- it will not take
 down the game or your script.
+
+## Timers -- `setTimeout`, `setInterval`, `clearTimer`
+
+Timers run a function *later* without stopping your script. Unlike `wait()`, they do
+not suspend anything -- you schedule a function and your code keeps running.
+
+- **`setTimeout(seconds, fn)`** runs `fn` **once**, `seconds` from now. Returns a
+  **handle**.
+- **`setInterval(seconds, fn)`** runs `fn` **repeatedly**, every `seconds`. Returns a
+  **handle**.
+- **`clearTimer(handle)`** cancels a timer (either kind) by its handle. Returns
+  `true` if it cancelled one.
+
+```lua
+-- one-shot: fire once, 5 seconds from now
+setTimeout(5, function() echo("5 seconds later") end)
+
+-- repeating: every 2 seconds, until we cancel it
+local ticks = 0
+local h = setInterval(2, function()
+    ticks = ticks + 1
+    echo("tick " .. ticks)
+    if ticks >= 3 then
+        clearTimer(h)   -- stop after three
+    end
+end)
+```
+
+Timers belong to the script that created them and are **cancelled automatically when
+the script ends** -- you do not have to clear them on exit.
+
+**Timer callbacks run atomically, exactly like event handlers:** the function takes
+no arguments, must run to completion, and **cannot call `wait()` / `waitframe()` /
+`waituntil()` / `waitforevent()`** (doing so is reported as an error -- it does not
+crash anything). Keep them short; if a callback needs to wait, have it set a flag or
+queue some data for your main loop (which *can* wait) to act on.
+
+The resolution is one frame, so a very small interval (or `0`) simply runs the
+callback about once per frame.
 
 ## Limits
 
