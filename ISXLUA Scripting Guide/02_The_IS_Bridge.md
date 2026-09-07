@@ -53,6 +53,111 @@ then pass arguments to it; `IS.Parse("${...}")` lets you build the full
 expression by hand. This is uncommon -- see [`03_Object_Model.md`](03_Object_Model.md) and
 [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md).
 
+## LavishScript interop -- variables and atoms
+
+`IS.Execute` and `IS.Parse` are string escape hatches; the three functions here
+are the *typed* interop layer for sharing state with existing LavishScript
+(`.iss`) code. Use them to read and write LavishScript **variables** as real Lua
+values, and to **call a LavishScript atom** and get its return value back. This
+is how a Lua script cooperates with a LavishScript script running alongside it --
+one writes a variable or defines an atom, the other reads or calls it.
+
+### `IS.GetVar` -- read a LavishScript variable, typed
+
+**`IS.GetVar(name [, default])`.** Reads a LavishScript variable and returns it as a **native Lua value of the
+matching type** -- an integer variable comes back as a Lua integer, a float as a
+float, a bool as `true`/`false`, a string as a string. This is the same type
+inference the object model uses for a member read, so `IS.GetVar` matches what
+the object model would give you (unlike [`IS.Parse`](#isparsedatasequence----evaluate-a--expression),
+which always returns text).
+
+Pass the **inside** of a `${...}` sequence -- just the variable name (ISXLUA
+wraps it for you), exactly like the `isxlua.num` / `isxlua.str` helpers in
+[`06_Bundled_Libraries.md`](06_Bundled_Libraries.md).
+
+```lua
+-- A LavishScript script (or another Lua script) declared:  declare Ammo int global 250
+local ammo = IS.GetVar("Ammo")          -- 250   (a Lua number, not "250")
+local nm   = IS.GetVar("PlayerName")    -- "Alice" (a Lua string)
+
+-- Second argument is the default when the variable does not resolve (undeclared, etc.).
+local mode = IS.GetVar("MissingVar", "idle")   -- "idle"
+local zero = IS.GetVar("MissingVar")           -- nil (no default given)
+```
+
+Because you pass the inside of a `${...}` sequence, `IS.GetVar` will also read a
+full expression -- e.g. `IS.GetVar("SomeTLO.SomeNumber")` -- returning it typed.
+Its primary job, though, is variables.
+
+### `IS.SetVar` -- write a LavishScript variable
+
+**`IS.SetVar(name, value)`.** Sets a LavishScript variable to `value`, **creating it in global scope if it does
+not already exist**. `value` may be a string, number, boolean, or `nil`
+(`nil` -> empty string). The Lua type picks the new variable's LavishScript type:
+a Lua integer -> `int64`, a float -> `float64`, a boolean -> `bool`, a string ->
+`string`. Returns `true` if the variable resolves afterward.
+
+```lua
+IS.SetVar("Ammo", 250)          -- creates a global int64 if absent, else sets it
+IS.SetVar("PlayerName", "Alice")
+IS.SetVar("Ready", true)
+
+-- Read it back, typed:
+if IS.GetVar("Ready") then echo("armed with " .. IS.GetVar("Ammo") .. " ammo") end
+
+-- A LavishScript script can now read the same variable with ${Ammo}, ${PlayerName}, ${Ready}.
+```
+
+Notes and limits:
+
+- **Global scope.** A newly created variable is declared **global**, so other
+  scripts and the console can read it (`${Ammo}`). It lives for the InnerSpace
+  session.
+- **An existing variable keeps its own type and scope.** If the variable already
+  exists (for example a LavishScript script did `declare Ammo int`), `IS.SetVar`
+  sets *that* variable and does not redeclare it -- so give a value that fits its
+  type (setting an `int` variable to `"hello"` stores `0`, exactly as LavishScript
+  would).
+- **The name must be a plain identifier** (a letter or underscore, then
+  letters/digits/underscores); anything else raises an error. Set members of an
+  object variable through the object model or [`IS.Execute`](#isexecutecommand----run-a-command)
+  instead.
+
+### `IS.CallAtom` -- call a LavishScript atom, get its return
+
+**`IS.CallAtom(name [, args...])`.** Invokes a **global** LavishScript atom by name, marshaling your arguments to
+LavishScript (a Lua number becomes its exact numeric text, a boolean becomes
+`TRUE`/`FALSE`), and returns the atom's `return`ed value as a **native Lua value**
+(`TRUE`/`FALSE` -> boolean, numeric -> number, otherwise a string). An atom that
+returns nothing yields `nil`.
+
+```lua
+-- A LavishScript script defined a global atom, e.g.:
+--   atom(global) ComputeBonus(int base, int mult)
+--   {
+--       return ${Math.Calc[${base} * ${mult}]}
+--   }
+local bonus = IS.CallAtom("ComputeBonus", 10, 3)   -- 30 (a Lua number)
+
+-- Fire-and-forget: an atom with no return value gives nil.
+IS.CallAtom("RefreshUI")
+```
+
+Notes and limits:
+
+- **The atom must be GLOBAL.** Declare it `atom(global) Name` in a LavishScript
+  script, or register it globally with the `AddAtom -global "..."` command. A
+  script-scoped atom is not reachable from here and raises an error naming the
+  atom.
+- **Atoms are atomic** (they run to completion with no `wait`), so `IS.CallAtom`
+  returns as soon as the atom finishes.
+- **Empty return == no return.** LavishScript hands an atom's return back as a
+  string; an atom that returns an empty string is indistinguishable from one that
+  returns nothing, and both come back as `nil`.
+
+For the *other* direction -- calling a **Lua** function from LavishScript -- see
+[the reverse bridge](#the-reverse-bridge----calling-lua-from-lavishscript) below.
+
 ## `print(...)` and `echo(...)` -- console output
 
 Both write to the InnerSpace console. Arguments are converted with `tostring`

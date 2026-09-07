@@ -51,6 +51,8 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | [`IS.Settings`](02_The_IS_Bridge.md#issettingsname----a-hierarchical-persistent-config-store) (Set/Get/GetString/Exists/Delete/Section/Settings/Sets/Name/Save/Load/Clear/Sort) | [`03_persistence_and_settings`](#03_persistence_and_settingslua) |
 | [`IS.Register` / `IS.Unregister`](02_The_IS_Bridge.md#isregistername-fn--isunregistername----the-lua-side) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
 | [`${ISXLUA.Call[...]}` / `luacall`](02_The_IS_Bridge.md#isxluacallname-args----call-and-get-a-value-the-clean-form) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [`IS.GetVar`](02_The_IS_Bridge.md#isgetvar----read-a-lavishscript-variable-typed) / [`IS.SetVar`](02_The_IS_Bridge.md#issetvar----write-a-lavishscript-variable) (LavishScript variables, typed) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [`IS.CallAtom`](02_The_IS_Bridge.md#iscallatom----call-a-lavishscript-atom-get-its-return) (call a LavishScript atom) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
 | [`IS.Share` / `IS.Shared`](04_Timing_And_Events.md#the-shared-value-store----isshare-isshared) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua), [`14_pause_resume_reload`](#14_pause_resume_reloadlua) |
 | [`IS.Subscribe` / `IS.Publish` / `IS.Unsubscribe`](04_Timing_And_Events.md#the-message-bus----ispublish-issubscribe-isunsubscribe) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
 | [Autoexec `autoload.lua`](01_Getting_Started.md#autoexec-autoloadlua) | [`12_autoexec_autoload`](#12_autoexec_autoloadlua--sample-autoloadlua) |
@@ -521,9 +523,11 @@ echo("user-editable config with sections.")
 ## 04_reverse_bridge_and_ipc.lua
 
 Interop beyond the object bridge: the reverse bridge (`IS.Register`/`Unregister`
-+ `${ISXLUA.Call}` / `luacall`), the cross-script shared store (`IS.Share`/
-`IS.Shared`), and the message bus (`IS.Subscribe`/`IS.Publish`/`IS.Unsubscribe`).
-Game-agnostic; stays alive ~30s so the console or an `.iss` bot can call in.
++ `${ISXLUA.Call}` / `luacall`), the typed forward interop (`IS.SetVar`/`IS.GetVar`
+read/write LavishScript variables, `IS.CallAtom` calls a LavishScript atom), the
+cross-script shared store (`IS.Share`/`IS.Shared`), and the message bus
+(`IS.Subscribe`/`IS.Publish`/`IS.Unsubscribe`). Game-agnostic; stays alive ~30s so
+the console or an `.iss` bot can call in.
 
 ```lua
 --------------------------------------------------------------------------------
@@ -536,6 +540,10 @@ Game-agnostic; stays alive ~30s so the console or an `.iss` bot can call in.
 --     * IS.Register(name, fn) / IS.Unregister(name)
 --     * ${ISXLUA.Call[name, args...]}   (LavishScript data member -- returns the value)
 --     * luacall <name> [args...]         (console command -- prints the return)
+--
+--   FORWARD INTEROP (reach INTO LavishScript from Lua -- typed):
+--     * IS.SetVar(name, value) / IS.GetVar(name [, default])   (LavishScript variables)
+--     * IS.CallAtom(name [, args...])                          (call a LavishScript atom)
 --
 --   CROSS-SCRIPT SHARED STORE (deep-copied between the isolated Lua states):
 --     * IS.Share(key, value) / IS.Shared(key)
@@ -578,7 +586,50 @@ echo("From the console you can also run:  luacall example_greet World")
 echo("or use it in an .iss bot:           ${ISXLUA.Call[example_add, 10, 20]}")
 
 --------------------------------------------------------------------------------
--- 2. Shared data store -- values are DEEP-COPIED between scripts (never shared by
+-- 2. Forward interop -- read/write LavishScript VARIABLES and call a LavishScript
+--    ATOM as typed Lua values (the counterpart to the reverse bridge above).
+--------------------------------------------------------------------------------
+echo("")
+echo("== LavishScript interop (variables & atoms) ==")
+
+-- IS.SetVar creates the variable in GLOBAL scope if needed; the Lua type picks the
+-- LavishScript type (integer -> int64, float -> float64, bool -> bool, string ->
+-- string). A LavishScript (.iss) script could read these back with ${...}.
+IS.SetVar("example_ammo", 250)          -- a global int64
+IS.SetVar("example_name", "Norrath")    -- a global string
+IS.SetVar("example_ready", true)        -- a global bool
+
+-- IS.GetVar reads them back as NATIVE Lua values (typed), not strings.
+local ammo  = IS.GetVar("example_ammo")     -- 250       (a Lua number)
+local name  = IS.GetVar("example_name")     -- "Norrath" (a Lua string)
+local ready = IS.GetVar("example_ready")    -- true      (a Lua boolean)
+echo(("Read back: ammo=%d (%s)  name=%q  ready=%s")
+    :format(ammo, math.type(ammo), name, tostring(ready)))
+
+-- A default is returned when the variable does not resolve.
+echo("Missing var, with default: " .. tostring(IS.GetVar("example_missing", "n/a")))
+
+-- The SAME variable is visible to LavishScript as ${example_ammo} -- that is the interop.
+echo("LavishScript's view via ${example_ammo}: " .. tostring(IS.Parse("${example_ammo}")))
+
+-- IS.CallAtom invokes a GLOBAL LavishScript atom and returns its value, typed. We
+-- define one on the fly here with the AddAtom console command; normally a running
+-- .iss script would have declared it with `atom(global) example_bonus(...)`.
+IS.Execute("DeleteAtom example_bonus")   -- clear any prior definition (harmless if none)
+IS.Execute([[AddAtom -global "atom example_bonus(int base, int mult)\n{\nreturn ${Math.Calc[${base}*${mult}]}\n}"]])
+
+-- CallAtom raises if the atom is not a resolvable GLOBAL atom, so guard with pcall.
+local okCall, bonus = pcall(IS.CallAtom, "example_bonus", ammo, 2)
+if okCall and type(bonus) == "number" then
+    echo("IS.CallAtom('example_bonus', " .. ammo .. ", 2) = " .. bonus .. " (a Lua number)")
+else
+    echo("[note] the example atom was not callable this run (" .. tostring(bonus) .. ");")
+    echo("       declare a global atom in an .iss script and call it with IS.CallAtom.")
+end
+IS.Execute("DeleteAtom example_bonus")   -- cleanup
+
+--------------------------------------------------------------------------------
+-- 3. Shared data store -- values are DEEP-COPIED between scripts (never shared by
 --    reference). Copyable: nil/boolean/number/string and tables of those.
 --------------------------------------------------------------------------------
 echo("")
@@ -598,7 +649,7 @@ local ok = pcall(function() IS.Share("example_bad", function() end) end)
 echo("Sharing a function raised an error (as expected)? " .. tostring(not ok))
 
 --------------------------------------------------------------------------------
--- 3. Message bus -- publish/subscribe across scripts (args deep-copied too).
+-- 4. Message bus -- publish/subscribe across scripts (args deep-copied too).
 --------------------------------------------------------------------------------
 echo("")
 echo("== IS.Subscribe / IS.Publish / IS.Unsubscribe ==")
@@ -622,7 +673,7 @@ IS.Publish("example_channel", "alert", "should not arrive")
 echo("After Unsubscribe, a further publish reached us? " .. tostring(received ~= nil))
 
 --------------------------------------------------------------------------------
--- 4. Stay alive briefly so the console / an .iss bot can drive the reverse-bridge
+-- 5. Stay alive briefly so the console / an .iss bot can drive the reverse-bridge
 --    calls above. Registrations auto-clear when the script ends.
 --------------------------------------------------------------------------------
 echo("")
