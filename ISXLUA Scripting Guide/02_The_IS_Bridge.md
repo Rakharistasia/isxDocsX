@@ -149,6 +149,12 @@ Notes and limits:
   script, or register it globally with the `AddAtom -global "..."` command. A
   script-scoped atom is not reachable from here and raises an error naming the
   atom.
+- **Arguments bind to the atom's declared parameters, read by name.** The values
+  you pass are assigned, left to right, to the parameters in the atom's signature,
+  and the body reads them by those names -- e.g. `atom(global) ComputeBonus(int
+  base, int mult)` reads `${base}` and `${mult}`. This is the same convention every
+  `.iss` atom uses; you do not write `${1}`/`${2}` (declare named parameters
+  instead).
 - **Atoms are atomic** (they run to completion with no `wait`), so `IS.CallAtom`
   returns as soon as the atom finishes.
 - **Empty return == no return.** LavishScript hands an atom's return back as a
