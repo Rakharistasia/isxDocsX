@@ -614,6 +614,89 @@ completion and **cannot call `wait()` / `waitframe()` / `waituntil()` /
 queue it in a table) and let your main loop act on it. An error in a subscriber is
 printed to the console (with a traceback) and never crashes the game or the publisher.
 
+## Cross-session relay -- talk to your other game instances
+
+[The shared store and message bus above](#sharing-data-between-scripts) reach other
+**scripts in the same game session**. To reach your **other InnerSpace game
+sessions** -- the whole point of multiboxing -- use the **relay** bridge. It is a
+thin, safe wrapper over InnerSpace's own `relay` command: one call runs a command,
+or fires an event, in one or more other sessions.
+
+```lua
+-- run a command in every other session (and this one):
+IS.Relay("all", "echo hello from " .. IS.Parse("${Session}"))
+
+-- fire an event in one specific session by name:
+IS.RelayEvent("is2", "MyBot_Assist", IS.Parse("${Me.Name}"), 12345)
+```
+
+### `IS.Relay(target, command)`
+
+Runs `command` -- a full LavishScript command line -- in the target session(s). The
+target session parses and runs it **in its own context** (its `${Me}`, its loaded
+extensions), not yours.
+
+- **`target`** is one of:
+  - a **session name** (e.g. `"is1"`, `"is2"` -- a session's own name is `IS.Parse("${Session}")`),
+  - **`"all"`** -- every session on the uplink, **including the one that sent it**,
+  - **`"all local"`** -- only sessions on this PC's uplink,
+  - an **uplink name** -- every session on that (possibly remote) uplink.
+- **`command`** is forwarded **verbatim**, so build any dynamic values into the
+  string yourself before calling (there is no per-argument escaping here -- it is a
+  command line, exactly like [`IS.Execute`](02_The_IS_Bridge.md#isexecutecommand----run-a-command) but in another session).
+- Returns the local `relay` command's integer result -- **not** the remote outcome
+  (see the async note below).
+
+### `IS.RelayEvent(target, eventName, args...)`
+
+Fires the LavishScript **event** `eventName` in the target session(s), passing the
+varargs as string arguments. In each target session, every handler attached to that
+event name with [`IS.AttachEvent`](#isattacheventname-fn) runs -- so **relay + the
+existing events layer is your cross-session publish/subscribe.**
+
+- **`target`** is exactly as for `IS.Relay`.
+- **`eventName`** must be a valid event name (a letter or underscore, then
+  letters/digits/underscores).
+- Each **argument** is coerced to a string the same way [`IS.FireEvent`](#events) does
+  (a number/boolean/bridge-object becomes its text) and is **escaped** so a value
+  with spaces or metacharacters survives the relay command line as one argument.
+  Keep args simple -- identifiers, numbers, ids, short strings; a value with embedded
+  newlines or nested quotes may not survive the target's re-parse.
+- Returns the local `relay` command's integer result (async -- see below).
+
+### Receiving -- just attach the event
+
+There is no separate "receive" call: a session receives a relayed event by attaching
+to that event name, exactly like any local event.
+
+```lua
+-- in every session that should respond (put this in autoload.lua so it is always on):
+IS.AttachEvent("MyBot_Assist", function(leaderName, targetID)
+    echo(IS.Parse("${Me.Name}") .. " assisting " .. leaderName .. " on " .. targetID)
+    -- record it; do NOT wait() in here -- start timed work from your main loop
+end)
+```
+
+A leader session then drives the whole team with a single
+`IS.RelayEvent("all", "MyBot_Assist", ...)`. The handler runs
+[atomically](#handlers-run-atomically----no-wait-inside-them), like every event
+handler.
+
+### Honest limits
+
+- **The uplink must be running.** A game session launched through InnerSpace always
+  has its local uplink, so same-PC relay works out of the box. Only sessions on the
+  **same uplink** are reachable; a session on another PC is reachable only when the
+  two uplinks are connected.
+- **Relay is asynchronous / fire-and-forget.** The command is *not* guaranteed to
+  have run in the target by the time the call returns, and there is no built-in
+  reply. For a response, have the target `IS.RelayEvent` an answer back to you.
+- **`"all"` includes the sender.** There is no native "all others" target. If a
+  handler should ignore events it sent itself, compare the sender: pass
+  `IS.Parse("${Session}")` as an argument and skip it when it matches your own.
+- **The command runs with the target's context**, not yours -- `${Me}` in a relayed
+  command is the *target's* character.
+
 ## Limits
 
 You can have up to **64 distinct events** attached at once (across all scripts).

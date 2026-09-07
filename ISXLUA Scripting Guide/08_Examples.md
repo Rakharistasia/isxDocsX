@@ -55,6 +55,8 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | [`IS.CallAtom`](02_The_IS_Bridge.md#iscallatom----call-a-lavishscript-atom-get-its-return) (call a LavishScript atom) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
 | [`IS.Share` / `IS.Shared`](04_Timing_And_Events.md#the-shared-value-store----isshare-isshared) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua), [`14_pause_resume_reload`](#14_pause_resume_reloadlua) |
 | [`IS.Subscribe` / `IS.Publish` / `IS.Unsubscribe`](04_Timing_And_Events.md#the-message-bus----ispublish-issubscribe-isunsubscribe) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [`IS.Relay`](04_Timing_And_Events.md#isrelaytarget-command) (run a command in your other sessions) | [`16_cross_session_relay`](#16_cross_session_relaylua) |
+| [`IS.RelayEvent`](04_Timing_And_Events.md#isrelayeventtarget-eventname-args) (fire an event in your other sessions; receive with [`IS.AttachEvent`](04_Timing_And_Events.md#isattacheventname-fn)) | [`16_cross_session_relay`](#16_cross_session_relaylua) |
 | [Autoexec `autoload.lua`](01_Getting_Started.md#autoexec-autoloadlua) | [`12_autoexec_autoload`](#12_autoexec_autoloadlua--sample-autoloadlua) |
 | [Per-game autoexec `autoload_<game>.lua`](01_Getting_Started.md#per-game-autoexec-autoload_gamelua) | [`13_autoexec_autoload_eq2`](#13_autoexec_autoload_eq2lua--sample-autoload_eq2lua) |
 | [Pause / resume / reload](01_Getting_Started.md#pausing-resuming-and-reloading-scripts) (`IS.PauseScript`/`ResumeScript`/`ReloadScript` + `lua -pause`/`-resume`/`-reload`) | [`14_pause_resume_reload`](#14_pause_resume_reloadlua) |
@@ -2039,4 +2041,124 @@ end
 echo("")
 echo("Done. input is optional -- every call maps to an InnerSpace command you could")
 echo("also issue by hand: IS.Execute('Press ...' / 'MouseClick ...' / 'Mouse:...').")
+```
+
+---
+
+## 16_cross_session_relay.lua
+
+[Cross-session relay](04_Timing_And_Events.md#cross-session-relay----talk-to-your-other-game-instances) --
+send commands ([`IS.Relay`](04_Timing_And_Events.md#isrelaytarget-command)) and events
+([`IS.RelayEvent`](04_Timing_And_Events.md#isrelayeventtarget-eventname-args)) to your OTHER
+InnerSpace game sessions (multiboxing), over InnerSpace's own `relay` command, and
+receive them with the normal [`IS.AttachEvent`](04_Timing_And_Events.md#isattacheventname-fn)
+events layer. Game-agnostic. **Safe by default:** it round-trips an event to THIS
+session (a real proof of the `RelayEvent` -> `AttachEvent` path with a single session)
+and only PRINTS what it would broadcast -- flip `BROADCAST_TO_ALL` to actually reach
+your other sessions.
+
+```lua
+--------------------------------------------------------------------------------
+-- 16_cross_session_relay.lua
+--------------------------------------------------------------------------------
+-- Cross-session relay -- send commands and events to your OTHER InnerSpace game
+-- sessions (multiboxing), over InnerSpace's own `relay` command. Game-agnostic.
+--
+--   IS.Relay(target, command)              run a command line in the target session(s)
+--   IS.RelayEvent(target, eventName, ...)  fire a LavishScript event in the target(s)
+--
+--   target is a session name, "all" (every session, INCLUDING this one),
+--   "all local" (only sessions on this PC), or an uplink name. A session's own
+--   name is ${Session}  ->  IS.Parse("${Session}").
+--
+--   RECEIVE by attaching to the event name with the normal events layer:
+--       IS.AttachEvent(eventName, function(...) ... end)
+--   relay + the events layer IS your cross-session publish/subscribe -- there is
+--   no separate "receive" call.
+--
+-- This example is SAFE by default: it round-trips an event to THIS session (a real
+-- proof that RelayEvent -> AttachEvent works with a single session) and only PRINTS
+-- what it would broadcast. Flip BROADCAST_TO_ALL to actually reach other sessions.
+--
+-- HOW TO RUN:
+--     lua 16_cross_session_relay
+--------------------------------------------------------------------------------
+
+-- Flip to true to actually relay to your OTHER sessions ("all"). Left false so the
+-- example only touches THIS session and is safe to run with a team logged in.
+local BROADCAST_TO_ALL = false
+
+local mySession = IS.Parse("${Session}") or "(none)"
+echo("this session is: " .. mySession)
+
+--------------------------------------------------------------------------------
+-- 1. Receive side -- attach a handler, exactly like any local event. A relayed
+--    event fires this in whichever session receives it.
+--------------------------------------------------------------------------------
+local gotEvent = false
+IS.AttachEvent("Demo_RelayPing", function(fromSession, note)
+    gotEvent = true
+    echo(string.format("  [handler] Demo_RelayPing from %s: %s",
+        tostring(fromSession), tostring(note)))
+end)
+
+--------------------------------------------------------------------------------
+-- 2. Self-loopback round-trip (SAFE -- targets only this session by name). This
+--    proves the RelayEvent -> AttachEvent path end to end with a single session:
+--    relay the event to our OWN session name, then wait for it to come back.
+--------------------------------------------------------------------------------
+echo("")
+echo("== Self-loopback round-trip (safe) ==")
+IS.RelayEvent(mySession, "Demo_RelayPing", mySession, "hello from myself")
+
+-- relay is asynchronous, so give the event a few frames to arrive.
+local waited = 0
+while not gotEvent and waited < 60 do
+    waitframe()
+    waited = waited + 1
+end
+if gotEvent then
+    echo("  round-trip OK -- RelayEvent reached our own AttachEvent handler")
+else
+    echo("  [INFO] no loopback within ~60 frames -- relay-to-self may not be")
+    echo("         supported on this uplink; try BROADCAST_TO_ALL with a 2nd session")
+end
+
+--------------------------------------------------------------------------------
+-- 3. Send a COMMAND to other sessions. IS.Relay runs a full command line in the
+--    target's OWN context (its ${Me}, its loaded extensions).
+--------------------------------------------------------------------------------
+echo("")
+if not BROADCAST_TO_ALL then
+    echo("== Broadcast to all (SKIPPED -- set BROADCAST_TO_ALL=true to enable) ==")
+    echo("  would: IS.Relay('all', 'echo relayed hello from " .. mySession .. "')")
+    echo("  would: IS.RelayEvent('all', 'Demo_RelayPing', '" .. mySession .. "', 'team ping')")
+else
+    echo("== Broadcasting to all sessions ==")
+    -- Every session (including this one) prints this in its own console:
+    IS.Relay("all", "echo relayed hello from " .. mySession)
+    -- Every session's Demo_RelayPing handler runs (attach it in autoload.lua so
+    -- your whole team is always listening):
+    IS.RelayEvent("all", "Demo_RelayPing", mySession, "team ping")
+    echo("  sent. other sessions with a Demo_RelayPing handler just ran it.")
+end
+
+--------------------------------------------------------------------------------
+-- 4. "All but me": there is no native "all others" target -- "all" includes the
+--    sender. A handler that should ignore its own broadcast compares ${Session}.
+--------------------------------------------------------------------------------
+echo("")
+echo("Tip: 'all' includes THIS session. To ignore your own broadcast, pass your")
+echo("session name and skip it in the handler:")
+echo("    IS.AttachEvent('Demo_RelayPing', function(from, note)")
+echo("        if from == IS.Parse('${Session}') then return end  -- skip self")
+echo("        -- ... handle a teammate's ping ...")
+echo("    end)")
+
+IS.DetachEvent("Demo_RelayPing")
+
+echo("")
+echo("Done. relay needs the uplink running (always on for an InnerSpace game")
+echo("session) and reaches only sessions on the same uplink; it is fire-and-forget")
+echo("(relay an event back for a reply).")
 ```
