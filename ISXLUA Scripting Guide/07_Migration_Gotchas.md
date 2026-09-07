@@ -39,6 +39,29 @@ A name that is neither a Lua value nor a LavishScript top-level object returns
 `IS.WarnUnknownGlobals(false)`). **But** a misspelled `.Member` or `:Method` on an
 object that *did* resolve **does** raise a Lua error, with a traceback.
 
+## `Math` (and other core-LavishScript TLOs) are NOT bare globals -- use `IS.Parse`
+
+The bare-global names are exactly the top-level objects your game/extension
+provides -- `Me`, `Actor`, `EQ2`, `Target`, and so on. The *core-LavishScript*
+pseudo-TLOs -- `Math`, `Time`, `String`, `System` -- are resolvable by the
+LavishScript expression parser but are **not** exposed as bare globals, so:
+
+```lua
+Math.Calc(2 + 3)                 -- ERROR: attempt to index a nil value (global 'Math')
+local sum = IS.Parse("${Math.Calc[2+3]}")   -- correct: use IS.Parse for these
+```
+
+To pass a Lua number/boolean through the same argument-coercion path a game member
+uses -- with no game loaded -- call a registered Lua function back through the
+always-present bare global `ISXLUA`:
+
+```lua
+IS.Register("echo", function(s) return "<" .. tostring(s) .. ">" end)
+print(ISXLUA.Call("echo", 42))    -- <42>   (integer, no decimal point)
+print(ISXLUA.Call("echo", 42.5))  -- <42.5> (float, locale-independent '.')
+IS.Unregister("echo")
+```
+
 ## Do not hold an object across a `wait()`
 
 Object wrappers point at frame-scoped LavishScript data that can go stale after a

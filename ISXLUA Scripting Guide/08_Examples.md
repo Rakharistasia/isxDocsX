@@ -31,7 +31,7 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | Script args (`args` table + `...`) | `01_bridge_and_events` |
 | Bare-global TLOs | `01_bridge_and_events` (ISXLUA), `11_game_character_eq2` (Me/Actor/EQ2/Zone/Target) |
 | `.Member` (native scalar leaves) | `01_bridge_and_events`, `11_game_character_eq2` |
-| `.Member(args)` | `11_game_character_eq2` (`Me.Group(1)`), `01_bridge_and_events` (`Math.Calc(n)`) |
+| `.Member(args)` | `11_game_character_eq2` (`Me.Group(1)`), `01_bridge_and_events` (`ISXLUA.Call(name, n)`) |
 | `:Method(args)` | `11_game_character_eq2` |
 | `obj[i]` numeric index | `11_game_character_eq2` |
 | Typed getters (`:Int`/`:Number`/`:Bool`/`:Str`/`:LSType`) | `01_bridge_and_events`, `11_game_character_eq2` |
@@ -106,8 +106,9 @@ game-agnostic.
 --     lua 01_bridge_and_events hello 42
 --------------------------------------------------------------------------------
 
--- We deliberately probe a possibly-absent global (Math) below; keep the one-time
--- unknown-global warning quiet while we do.
+-- IS.WarnUnknownGlobals(false) silences the one-time "unknown global" warning that
+-- fires the first time you touch a name that is neither a Lua value nor a TLO. The
+-- default is ON (the warning helps catch typos); turn it off while iterating.
 IS.WarnUnknownGlobals(false)
 
 --------------------------------------------------------------------------------
@@ -159,17 +160,21 @@ echo("IS.Parse('${Math.Calc[2+3]}') = " .. tostring(sum))
 -- When you pass a Lua number/boolean as an ARGUMENT to a member/method, ISXLUA
 -- stringifies it for LavishScript: an integer gets NO decimal point ("42"), a
 -- float keeps full precision with a locale-independent '.' ("42.5"), and a bool
--- becomes TRUE/FALSE. Math.Calc parses the exact string it is handed, so it is a
--- clean way to prove the round-trip.
-local okMath = pcall(function() return Math.Calc(1) end)
-if okMath then
-    echo("Math.Calc(42)   = " .. tostring(Math.Calc(42)) ..
-         "   (integer arg -> \"42\", no decimal point)")
-    echo("Math.Calc(42.5) = " .. tostring(Math.Calc(42.5)) ..
-         "   (float arg keeps its decimal, locale-independent)")
-else
-    echo("(Math TLO unavailable in this session -- skipping the coercion demo.)")
-end
+-- becomes TRUE/FALSE. To SEE the exact string LavishScript received -- with no game
+-- loaded -- register a tiny Lua "echo" function and call it back through the
+-- bare-global ISXLUA object's .Call member (the reverse bridge). The argument travels
+-- the SAME coercion path a real game member/method arg uses.
+--   (Aside: ${Math...} is reachable via IS.Parse("${Math.Calc[...]}") but Math is a
+--   core LavishScript pseudo-TLO, NOT a bare global -- so `Math.Calc(42)` would index
+--   nil. Bare globals are the game/extension TLOs, e.g. Me / Actor / EQ2.)
+IS.Register("example_echoarg", function(s) return "<" .. tostring(s) .. ">" end)
+echo("ISXLUA.Call(echo, 42)   = " .. tostring(ISXLUA.Call("example_echoarg", 42)) ..
+     "   (integer arg -> \"42\", no decimal point)")
+echo("ISXLUA.Call(echo, 42.5) = " .. tostring(ISXLUA.Call("example_echoarg", 42.5)) ..
+     "   (float arg keeps its decimal, locale-independent)")
+echo("ISXLUA.Call(echo, true) = " .. tostring(ISXLUA.Call("example_echoarg", true)) ..
+     "   (boolean arg -> TRUE/FALSE)")
+IS.Unregister("example_echoarg")
 
 --------------------------------------------------------------------------------
 -- 5. Object wrappers and the typed getters -- shown on a NULL object.
