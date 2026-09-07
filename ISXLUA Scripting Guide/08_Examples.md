@@ -71,6 +71,9 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | [`require("lfs")`](06_Bundled_Libraries.md#listing-files-with-lfs) | [`06_data_libraries`](#06_data_librarieslua) |
 | [`require("zlib")`](06_Bundled_Libraries.md#compression-with-zlib) | [`06_data_libraries`](#06_data_librarieslua) |
 | [`require("lsqlite3")`](06_Bundled_Libraries.md#a-database-with-lsqlite3) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("sha2")` / `require("base64")` / `require("crypto")`](06_Bundled_Libraries.md#hashing-and-encoding-with-crypto) (hashing, HMAC, base64/hex) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("MessagePack")`](06_Bundled_Libraries.md#binary-serialization-with-messagepack) (binary pack/unpack) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("luaunit")`](06_Bundled_Libraries.md#unit-tests-with-luaunit) (unit testing) | [`06_data_libraries`](#06_data_librarieslua) |
 | [`require("middleclass")`](06_Bundled_Libraries.md#classes-with-middleclass) | [`07_oop_and_utilities`](#07_oop_and_utilitieslua) |
 | [`require("pl.*")`](06_Bundled_Libraries.md#standard-library-extensions-with-penlight) (Penlight: class/List/Map/Set/tablex/stringx/pretty/seq + aggregate) | [`07_oop_and_utilities`](#07_oop_and_utilitieslua) |
 | [`require("isxlua")`](06_Bundled_Libraries.md#the-isxlua-helper-library) (helper library) | [`08_isxlua_helpers`](#08_isxlua_helperslua) |
@@ -899,7 +902,8 @@ echo("Done.")
 
 A tour of the bundled data / serialization / parsing / storage libraries:
 `cjson` (+ `cjson.safe`), the pure-Lua `json`, `serpent`, `inspect`, `lpeg` + `re`,
-`lfs`, `zlib`, and `lsqlite3`. Game-agnostic.
+`lfs`, `zlib`, `lsqlite3`, the `crypto` (`sha2` + `base64`) hashing/encoding facade,
+`MessagePack`, and `luaunit`. Game-agnostic.
 
 ```lua
 --------------------------------------------------------------------------------
@@ -918,6 +922,9 @@ A tour of the bundled data / serialization / parsing / storage libraries:
 --   * lfs                   LuaFileSystem: list dirs, stat files, mkdir
 --   * zlib                  deflate/inflate compression + crc32/adler32
 --   * lsqlite3              embedded SQLite 3 database (:memory: or on disk)
+--   * crypto / sha2 / base64  hashing (SHA/MD5), HMAC, and base64/hex encoding
+--   * MessagePack           compact binary serialization (pack/unpack)
+--   * luaunit               xUnit-style unit-test framework
 --
 -- HOW TO RUN:
 --     lua 06_data_libraries
@@ -1037,6 +1044,58 @@ for row in db:nrows("SELECT name, level FROM mobs WHERE level >= 40 ORDER BY lev
 end
 db:close()
 echo("(SQLite version " .. sqlite3.version() .. ")")
+
+--------------------------------------------------------------------------------
+-- 8. crypto -- hashing, HMAC, and base64/hex encoding (an sha2 + base64 facade).
+--------------------------------------------------------------------------------
+echo("")
+echo("== crypto ==")
+
+local crypto = require("crypto")
+-- Each hash returns a lowercase hex digest string.
+echo("sha256('abc') -> " .. crypto.sha256("abc"))
+echo("md5('abc')    -> " .. crypto.md5("abc"))
+-- HMAC keyed hash -- pass one of the crypto.* hash functions as the first argument.
+echo("hmac-sha256   -> " .. crypto.hmac(crypto.sha256, "Jefe", "what do ya want for nothing?"))
+-- base64 and hex encode/decode.
+local b64 = crypto.base64.encode("Man is distinguished")
+echo("base64 round-trip ok: " .. tostring(crypto.base64.decode(b64) == "Man is distinguished") ..
+    " (" .. b64 .. ")")
+local hx = crypto.hex.encode("Man")
+echo("hex round-trip ok:    " .. tostring(crypto.hex.decode(hx) == "Man") .. " (" .. hx .. ")")
+
+--------------------------------------------------------------------------------
+-- 9. MessagePack -- compact binary serialization (pack a table, unpack it back).
+--------------------------------------------------------------------------------
+echo("")
+echo("== MessagePack ==")
+
+local mp = require("MessagePack")
+local msg = { name = "Fippy", level = 95, alive = true, skills = { "taunt", "kick" } }
+local packed = mp.pack(msg)
+local back = mp.unpack(packed)
+echo(string.format("packed %d bytes; round-trip ok: %s (name=%s skills[2]=%s)",
+    #packed,
+    tostring(back.name == "Fippy" and back.level == 95 and back.skills[2] == "kick"),
+    back.name, back.skills[2]))
+
+--------------------------------------------------------------------------------
+-- 10. luaunit -- a tiny in-script unit test (xUnit-style assertions + a runner).
+--------------------------------------------------------------------------------
+echo("")
+echo("== luaunit ==")
+
+local lu = require("luaunit")
+local TestDemo = {}
+function TestDemo:testMath() lu.assertEquals(2 + 2, 4) end
+function TestDemo:testChecks()
+    lu.assertTrue(95 > 1)
+    lu.assertError(function() error("boom") end)   -- asserts the call raises
+end
+local runner = lu.LuaUnit.new()
+runner:setOutputType("NIL")                          -- run quietly; omit for a printed report
+runner:runSuiteByInstances({ { "TestDemo", TestDemo } })
+echo("luaunit failures (0 = all passed): " .. tostring(runner.result.notSuccessCount))
 
 echo("")
 echo("Done. See 07_oop_and_utilities.lua for middleclass + Penlight.")

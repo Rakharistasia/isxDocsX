@@ -5,9 +5,10 @@ install and no files to place on disk -- just `require` them. Every bundled modu
 is require-able only; none is installed as a global, so they never shadow your own
 variables or the top-level-object bridge.
 
-Most are MIT-licensed; the exceptions are `zlib` (the zlib license) and `lsqlite3`'s
-underlying SQLite engine (public domain). All are bundled in **both** ISXLUA builds --
-none requires the "with libisxgames" build.
+Most are MIT-licensed; the rest use equally permissive terms -- `zlib` the zlib license,
+`lsqlite3`'s underlying SQLite engine and `base64` the public domain, and `luaunit` the
+BSD license. All are bundled in **both** ISXLUA builds -- none requires the
+"with libisxgames" build.
 
 ## The modules
 
@@ -30,6 +31,11 @@ none requires the "with libisxgames" build.
 | `require("input")` | Typed keyboard / mouse / bind automation -- press keys, hold and release, move and click the mouse, and fire named binds, instead of hand-building command strings. See [below](#the-input-automation-module). |
 | `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
 | `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
+| `require("sha2")` | Cryptographic hashing and HMAC -- SHA-1/224/256/384/512, SHA-3, MD5, HMAC, and the BLAKE family. Each hash returns a lowercase hex string. See [Hashing and encoding](#hashing-and-encoding-with-crypto) below. |
+| `require("base64")` | Base64 encode/decode, over the standard alphabet or one you supply. See [Hashing and encoding](#hashing-and-encoding-with-crypto) below. |
+| `require("crypto")` | A small convenience facade that pulls `sha2` and `base64` together and adds hex: `crypto.sha256` / `crypto.hmac` / `crypto.base64` / `crypto.hex`. See [Hashing and encoding](#hashing-and-encoding-with-crypto) below. |
+| `require("MessagePack")` | Compact binary serialization (the [MessagePack](https://msgpack.org/) format) -- `pack` a Lua value to a byte string and `unpack` it back. See [Binary serialization](#binary-serialization-with-messagepack) below. |
+| `require("luaunit")` | A unit-test framework (xUnit-style assertions and test runners) for testing your own Lua modules. See [Unit tests](#unit-tests-with-luaunit) below. |
 
 ### JSON with `cjson`
 
@@ -265,6 +271,111 @@ echo(nums:sort():join(", "))                         -- 1, 2, 3, 4
 > `require("pl")` on its own loads the whole library lazily *into globals* -- handy
 > for exploration, but prefer requiring the specific `pl.*` submodules you use so
 > your script's globals stay clean.
+
+### Hashing and encoding with `crypto`
+
+`crypto` is a small facade that bundles the two building blocks -- `sha2` (hashing and
+HMAC) and `base64` (Base64) -- and adds hex, so the common needs are one `require`:
+
+```lua
+local crypto = require("crypto")
+
+-- Hashes return a lowercase hex digest string:
+echo(crypto.sha256("abc"))              -- ba7816bf...f20015ad
+echo(crypto.md5("abc"))                 -- 900150983cd24fb0d6963f7d28e17f72
+
+-- HMAC (keyed hash) -- pass one of the crypto.* hash functions as the first argument:
+local mac = crypto.hmac(crypto.sha256, "Jefe", "what do ya want for nothing?")
+echo(mac)                               -- 5bdcc146bf60754e...964ec3843
+
+-- Base64 encode/decode:
+local b64 = crypto.base64.encode("Man is distinguished")
+echo(b64)                               -- TWFuIGlzIGRpc3Rpbmd1aXNoZWQ=
+echo(crypto.base64.decode(b64))         -- Man is distinguished
+
+-- Hex encode/decode:
+local hex = crypto.hex.encode("Man")
+echo(hex)                               -- 4d616e
+echo(crypto.hex.decode(hex))            -- Man
+```
+
+| Call | Returns |
+|---|---|
+| `crypto.sha256(s)` / `sha1` / `sha512` / `md5` | The digest of `s` as a lowercase hex string. |
+| `crypto.hmac(hashfn, key, msg)` | The HMAC of `msg` under `key`, as hex. `hashfn` is a `crypto.*` hash (e.g. `crypto.sha256`). |
+| `crypto.base64.encode(s)` / `.decode(s)` | Base64 text / the original bytes. |
+| `crypto.hex.encode(s)` / `.decode(s)` | Lowercase hex text / the original bytes. |
+
+The facade covers the everyday cases. For more, `require` the underlying modules
+directly: `require("sha2")` also provides SHA-3, SHAKE, and the BLAKE2/BLAKE3 families
+(and its own `bin_to_hex` / `bin_to_base64` converters), and `require("base64")` can
+build encoders/decoders for a custom alphabet with `makeencoder` / `makedecoder`.
+
+> These are pure-Lua implementations -- convenient and dependency-free, but not
+> constant-time. Use them for checksums, content hashes, HMAC signatures, and encoding,
+> not as a substitute for a vetted native crypto library in a security-critical setting.
+> MD5 and SHA-1 are provided for compatibility with existing data; prefer SHA-256 for
+> anything new.
+
+### Binary serialization with `MessagePack`
+
+[MessagePack](https://msgpack.org/) is a compact binary alternative to JSON. `pack`
+turns a Lua value into a short byte string; `unpack` turns it back:
+
+```lua
+local mp = require("MessagePack")
+
+local data = { name = "example", hp = 100, tags = { "a", "b" }, ok = true }
+
+local packed = mp.pack(data)            -- a compact binary string
+echo(#packed .. " bytes")
+
+local restored = mp.unpack(packed)      -- back to a Lua table
+echo(restored.name .. " / " .. restored.hp)   -- example / 100
+echo(restored.tags[2])                        -- b
+```
+
+It round-trips Lua `nil`, booleans, numbers (integer and float), strings, and tables.
+It is smaller and faster to parse than JSON, which makes it a good fit for persisting
+state (write the bytes to a file) or sending structured data over
+[`socket`](#networking-with-socket). When you need a *human-readable* form instead,
+use [`cjson`](#json-with-cjson) or [`serpent`](#serializing-tables-with-serpent).
+
+### Unit tests with `luaunit`
+
+`luaunit` is an xUnit-style test framework. Group tests as functions (named with a
+`test` prefix) in a table, then run them with a `LuaUnit` runner:
+
+```lua
+local lu = require("luaunit")
+
+TestMath = {}
+function TestMath:testAdd()
+    lu.assertEquals(1 + 1, 2)
+end
+function TestMath:testChecks()
+    lu.assertTrue(2 > 1)
+    lu.assertNil(nil)
+    lu.assertError(function() error("boom") end)   -- asserts the call raises
+end
+
+-- Run just these instances quietly and read the failure count (0 == all passed):
+local runner = lu.LuaUnit.new()
+runner:setOutputType("NIL")             -- suppress console output; omit for a TAP/text report
+runner:runSuiteByInstances({ { "TestMath", TestMath } })
+echo("failures: " .. tostring(runner.result.notSuccessCount))
+```
+
+Common assertions include `assertEquals`, `assertNotEquals`, `assertTrue`, `assertFalse`,
+`assertNil`, `assertNotNil`, `assertStrContains`, and `assertError` (and its
+`assertErrorMsgContains` variant). `assertEquals` compares tables deeply, so you can
+assert on whole result tables at once.
+
+> Requiring `luaunit` replaces the global `os.exit` with a guarded version (so a stray
+> test cannot silently end the run); it behaves normally when no suite is running. The
+> runner methods return a failure count rather than exiting, so running tests never
+> stops your script. Keep tests in their own `.lua` files you run on demand, not inside
+> a production script.
 
 ## The `isxlua` helper library
 
