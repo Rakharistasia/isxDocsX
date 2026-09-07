@@ -19,6 +19,12 @@ the common cases pleasant.
 > chapter describes it generically; for a complete, game-specific window see
 > [`08_Examples.md`](08_Examples.md).
 
+> **Two UI systems.** LGUI2 (JSON) is the **newer** system and the recommended
+> choice for new UIs. InnerSpace also has an older, XML-driven system, **LavishGUI 1
+> (LGUI1)**, with its own sibling module, **`lgui1`**. If you are maintaining an
+> existing `.xml` UI, jump to [The older system: LavishGUI 1](#the-older-system-lavishgui-1-lgui1)
+> at the end of this chapter.
+
 ---
 
 ## Loading a package file
@@ -356,5 +362,142 @@ the main loop, never in a handler.
 For the full LGUI2 element/property vocabulary (which element types exist, what
 properties they take), consult InnerSpace's own LavishGUI 2 documentation -- every
 element and property it describes is reachable through the handles here.
+
+---
+
+## The older system: LavishGUI 1 (`lgui1`)
+
+LavishGUI 1 (LGUI1) is InnerSpace's **older, XML-driven** UI system. LGUI2 (above)
+is newer and is the recommended choice for new UIs, but LGUI1 is still fully
+supported and there are many existing `.xml` UIs. The bundled **`lgui1`** module is
+the sibling of `lgui2`: the same idea (load a UI, find elements, read/change them,
+wire a button to a Lua function), adapted to LGUI1's XML-and-commands model.
+
+```lua
+local gui = require("lgui1")
+```
+
+LGUI1 differs from LGUI2 in a few ways the module surfaces:
+
+- UIs are **XML files** loaded with `ui -load` (LGUI2 uses JSON packages).
+- Visibility is `:show()` / `:hide()` / `:toggleVisible()` (there is no "collapsed"
+  state).
+- A checkbox is `:setChecked(true/false)` / `:toggleChecked()`.
+- A button's click handler is its **command**; wire it with an `onCommand` function.
+
+### Loading an XML file
+
+```lua
+local gui = require("lgui1")
+
+gui.loadFile("MyWindow.xml")                       -- ui -load "MyWindow.xml"
+gui.loadFile("MyWindow.xml", { skin = "EQ2-Green" })  -- with a skin
+-- ... use it ...
+gui.unloadFile("MyWindow.xml")                     -- ui -unload "MyWindow.xml"
+```
+
+`loadFile`'s options table accepts `skin` (a skin name) and `parent` (an
+`"element@path"` to load the UI into an existing element). `gui.reloadFile(path)`
+reloads a file in place.
+
+### Elements: find, read, change
+
+`gui.element(name)` returns a handle that is re-resolved by name on each call.
+LGUI1 addresses a nested element with an **`@` path** (`child@parent@window`);
+`el:child(name)` builds that path for you.
+
+```lua
+local win = gui.element("MyWindow")
+
+echo(win:exists())                   -- true / false
+echo(win:isVisible())
+win:hide()
+win:show()
+
+local label = win:child("StatusText")     -- UIElement[StatusText@MyWindow]
+label:setText("Ready")
+
+local box = gui.element("MyCheckbox")
+box:setChecked(true)
+echo(box:isChecked())
+```
+
+Handle methods: `:name()`, `:exists()`, `:get(member)` / `:getNumber` / `:getBool`,
+`:getText()` / `:setText(s)`, `:setX/:setY/:setWidth/:setHeight`,
+`:show/:hide/:toggleVisible/:isVisible/:setVisible`,
+`:isChecked/:setChecked/:toggleChecked`, `:leftClick()`, `:child(name[,type])`, and
+`:call(method, ...)` as a generic escape hatch. The setters chain.
+
+### Building UI from a Lua table
+
+`gui.load(def)` takes a Lua table, generates LGUI1 XML, and loads it. Pass either a
+full package (`{ elements = { ... } }`) or a single element. Give an event a Lua
+**function** and it is wired to your function automatically (called as
+`fn(elementName, eventName)`); a common one for a `commandbutton` is `onCommand`.
+
+```lua
+local gui = require("lgui1")
+
+local ui = gui.load{
+    elements = {
+        {
+            type = "Window", name = "demoWin", title = "Demo",
+            x = 200, y = 200, width = 220, height = 120,
+            children = {
+                { type = "Text", name = "demoLbl", text = "Hello from Lua!",
+                  x = 10, y = 10, width = 200, height = 20 },
+                { type = "commandbutton", name = "demoBtn", text = "Close",
+                  x = 10, y = 40, width = 100, height = 24,
+                  onCommand = function() ui:unload() end },
+            },
+        },
+    },
+}
+```
+
+`gui.load` returns a package handle with `:unload()` (unloads the UI and releases
+any callbacks it wired) and `:element(name)`. Common element property keys the
+builder understands: `x`, `y`, `width`, `height`, `text`, `visible`, `alpha`,
+`tooltip`, `alignment`; any other simple property can go in a `props = { Tag =
+value }` table. `children` is an array of child elements. (Complex property
+elements such as `<Font>`, which take nested children, are best authored in a
+file-based `.xml` package.)
+
+> The same **atomic-handler rule** applies as for LGUI2: a button handler runs to
+> completion instantly and must not `wait()`. Set a flag and let your main loop do
+> slow work.
+
+### Callbacks for a file-based XML UI
+
+If your UI is an `.xml` file, put `luacall <name>` in the element's command/handler
+text, and register the Lua function with the same name:
+
+```xml
+<commandbutton name='GoButton'>
+    <Text>Go</Text>
+    <Command>luacall onGo</Command>
+</commandbutton>
+```
+
+```lua
+local gui = require("lgui1")
+
+gui.register("onGo", function()
+    echo("the XML button was pressed")
+end)
+
+gui.loadFile("MyWindow.xml")
+```
+
+`gui.register(name, fn)` / `gui.unregister(name)` are the same reverse-bridge
+wrappers as in `lgui2`. Registered callbacks are released automatically when your
+script ends; the window is not -- call `:unload()` / `gui.unloadFile` when you are
+done.
+
+### What this layer does not do
+
+Like `lgui2`, it does **not** yet add a way to attach a Lua callback to an element
+that some *other* script or file loaded. For those, use a `luacall` handler in the
+XML (above), or `IS.AttachEvent` for a custom event.
 
 Next: [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md).

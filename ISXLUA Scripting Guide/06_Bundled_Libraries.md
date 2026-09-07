@@ -24,7 +24,8 @@ none requires the "with libisxgames" build.
 | `require("socket")` | LuaSocket -- TCP/UDP networking. Also brings `socket.http`, `socket.url`, `socket.ftp`, `socket.smtp`, `socket.tp`, `socket.headers`, and the `ltn12` / `mime` helpers. |
 | `require("zlib")` | lua-zlib -- deflate/inflate (zlib and gzip) compression, plus `adler32` / `crc32` checksums. |
 | `require("lsqlite3")` | lsqlite3 -- an embedded SQLite 3 database, backed by on-disk files or a fast `:memory:` database. |
-| `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
+| `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** (JSON, newer) UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
+| `require("lgui1")` | The sibling layer for **LavishGUI 1** (XML, older) UIs. Same chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 | `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
 | `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
 
