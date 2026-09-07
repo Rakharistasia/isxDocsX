@@ -715,9 +715,10 @@ Networking two ways: LuaSocket (`socket`, `socket.http`, `socket.url`, `ltn12`,
 `mime`) which is bundled in both builds and works everywhere, and the async
 `IS.HttpGet`/`IS.HttpPost` (feature-detected -- "with libisxgames" build only,
 including a table body auto-encoded to JSON or url-encoded form). Also shows
-`await` turning the async callback into a linear call and the inline
-`IS.HttpGetSync`/`IS.HttpPostSync` wrappers. Bounded and best-effort, so it never
-hangs offline.
+`await` turning the async callback into a linear call, the inline
+`IS.HttpGetSync`/`IS.HttpPostSync` wrappers, and per-request correlation of
+concurrent requests (two same-URL GETs each get their own response). Bounded and
+best-effort, so it never hangs offline.
 
 ```lua
 --------------------------------------------------------------------------------
@@ -736,6 +737,8 @@ hangs offline.
 --     * feature-detected (absent in the plain build), non-blocking, callback-based
 --     * IS.HttpPost accepts a Lua TABLE body (auto-encoded to JSON, or url-encoded
 --       when the content type names form encoding)
+--     * concurrent requests are correlated per-request -- fan out many at once and
+--       each response comes back to ITS OWN callback (even for an identical URL)
 --     * await(...) turns the callback into a single LINEAR call
 --     * IS.HttpGetSync / IS.HttpPostSync -- INLINE wrappers over await (same
 --       "with libisxgames" build only); feature-detected; return (ok, status, body)
@@ -891,6 +894,20 @@ else
             tostring(pok), tostring(pstatus)))
     else
         echo("IS.HttpGetSync / IS.HttpPostSync not present in this build.")
+    end
+
+    -- 3f. CONCURRENT-REQUEST CORRELATION. Fire two GETs to the SAME url back-to-back,
+    -- WITHOUT waiting between them. ISXLUA tags every request with a private correlation
+    -- id, so each in-flight request's response is delivered to ITS OWN callback -- they
+    -- never cross, even for an identical URL. This is what makes fanning out many
+    -- concurrent requests safe: each callback below receives its own request's result.
+    do
+        local aDone, aStatus, bDone, bStatus = false, nil, false, nil
+        IS.HttpGet("https://www.google.com/generate_204", function(o, s, body) aDone, aStatus = true, s end)
+        IS.HttpGet("https://www.google.com/generate_204", function(o, s, body) bDone, bStatus = true, s end)
+        waituntil(function() return aDone and bDone end, 15)
+        echo(string.format("Two concurrent same-URL GETs each got their OWN response -> A status=%s, B status=%s",
+            tostring(aStatus), tostring(bStatus)))
     end
 end
 
