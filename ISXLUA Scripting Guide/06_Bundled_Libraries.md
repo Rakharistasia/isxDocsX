@@ -27,6 +27,7 @@ none requires the "with libisxgames" build.
 | `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** (JSON, newer) UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 | `require("lgui1")` | The sibling layer for **LavishGUI 1** (XML, older) UIs. Same chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 | `require("isxlua")` | An optional, ISXLUA-specific convenience layer over the `IS` bridge and the runtime -- typed data reads, command/print/log sugar, and event/timer sugar. See [below](#the-isxlua-helper-library). |
+| `require("input")` | Typed keyboard / mouse / bind automation -- press keys, hold and release, move and click the mouse, and fire named binds, instead of hand-building command strings. See [below](#the-input-automation-module). |
 | `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
 | `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
 
@@ -354,6 +355,91 @@ isxlua.after(5.0, function() isxlua.cancel(h) end)         -- setTimeout + clear
 `setInterval` / `clearTimer`, sharing one vocabulary. As with any handler or timer
 callback, an `once` handler and the timer callbacks run atomically and must not
 `wait()`.
+
+## The `input` automation module
+
+`require("input")` is an optional convenience layer for **sending keyboard and mouse
+input, and firing binds**. It saves you from hand-building command strings: you call
+`input.press("ctrl+1")` instead of `IS.Execute("Press ctrl+1")`, and keys, mouse
+buttons, and binds all share one small, typed vocabulary. Like `isxlua` it installs
+no globals -- `require` it into a local.
+
+```lua
+local input = require("input")
+
+input.press("ctrl+1")            -- tap a key or combo (press + release)
+input.press("2", { nomodifiers = true })   -- send the exact key, no modifier remapping
+
+input.keydown("w")               -- press and HOLD a key ...
+wait(1.0)
+input.keyup("w")                 -- ... then release it
+
+input.move(640, 400)             -- move the cursor to client-pixel (640, 400)
+input.click("left", 640, 400)    -- move there, then left-click
+input.click("right")             -- right-click at the current cursor
+
+input.execBind("MoveForward")    -- fire a named InnerSpace bind (press + release)
+
+if input.keyPressed("shift") then    -- read current key state
+    echo("shift is held")
+end
+local x, y = input.mousePos()    -- current cursor position, as numbers
+```
+
+### Keyboard
+
+| Function | What it does |
+|---|---|
+| `input.press(combo [, opts])` | Tap a key or combo (press + release). `opts.nomodifiers = true` sends the exact key without modifier remapping (tap only). |
+| `input.keydown(combo)` (alias `input.hold`) | Press and **hold** a key/combo until you release it. |
+| `input.keyup(combo)` (alias `input.release`) | Release a key/combo held with `keydown`. |
+
+A `combo` is an InnerSpace key name or combination: `"a"`, `"1"`, `"ctrl+tab"`,
+`"shift+f1"`, `"\\"`, the mouse-button names `"mouse1"` ... `"mouse5"`, or
+`"MouseWheelUp"` / `"MouseWheelDown"`.
+
+### Mouse
+
+| Function | What it does |
+|---|---|
+| `input.move(x, y)` | Move the cursor to absolute client-pixel `(x, y)`. |
+| `input.click([button] [, x, y])` | Optionally move to `(x, y)` first, then click. `button` is `"left"` (default), `"right"`, or `"middle"` (their first letter or `1`/`2`/`3` also work). |
+| `input.mousedown([button])` | Press and **hold** a mouse button. |
+| `input.mouseup([button])` | Release a mouse button held with `mousedown`. |
+
+### Binds
+
+| Function | What it does |
+|---|---|
+| `input.execBind(name)` | Fire a named InnerSpace bind -- runs its press action then its release action (a one-shot). |
+| `input.bindDown(name)` | Run only the bind's **press** action (hold it). |
+| `input.bindUp(name)` | Run only the bind's **release** action. |
+
+A bind is an InnerSpace bind you created with the `Bind` command; the name goes
+inside `${Keyboard.Bind[...]}`, so it may not contain `]`.
+
+### Reading input state
+
+| Function | What it returns |
+|---|---|
+| `input.keyPressed(name)` | `true` while the named key/button is currently held. `name` is a key/button name (`"alt"`, `"shift"`, `"ctrl"`, `"space"`, a letter/number, or `"mouse1"` ... `"mouse5"`). |
+| `input.mouseX()` / `input.mouseY()` | The cursor's current client-pixel X / Y, as a number. |
+| `input.mousePos()` | Both at once: `local x, y = input.mousePos()`. |
+
+### Notes and limits
+
+- **It targets your session.** Input goes to the game window this InnerSpace session
+  is attached to -- not other sessions or other Windows programs. Coordinates are the
+  game window's client pixels, with the origin at the top-left.
+- **Middle click is emulated** as the `mouse3` button (there is no dedicated
+  middle-click), so it behaves as a middle-button tap.
+- **Binds take no arguments.** InnerSpace binds are argument-less; use `bindDown` /
+  `bindUp` when you need press-and-hold rather than a one-shot `execBind`.
+- Everything here is a thin wrapper over commands you can also issue directly with
+  [`IS.Execute`](02_The_IS_Bridge.md#isexecutecommand----run-a-command) (`Press`,
+  `MouseClick`, `Mouse:...`) and reads you can do with
+  [`IS.Parse`](02_The_IS_Bridge.md#isparsedatasequence----evaluate-a--expression) --
+  the module just makes them typed and discoverable.
 
 ## Loading your own modules
 

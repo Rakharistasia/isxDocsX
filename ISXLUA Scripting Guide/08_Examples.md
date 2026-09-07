@@ -74,6 +74,10 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | [`require("isxlua")`](06_Bundled_Libraries.md#the-isxlua-helper-library) (helper library) | [`08_isxlua_helpers`](#08_isxlua_helperslua) |
 | [`require("lgui2")`](05_Building_GUIs.md#building-guis-lavishgui-2) | [`09_gui_lgui2`](#09_gui_lgui2lua) |
 | [`require("lgui1")`](05_Building_GUIs.md#the-older-system-lavishgui-1-lgui1) | [`10_gui_lgui1`](#10_gui_lgui1lua) |
+| [`require("input")`](06_Bundled_Libraries.md#the-input-automation-module) keyboard (`press` / `keydown` / `keyup` / `hold` / `release`) | [`15_input_automation`](#15_input_automationlua) |
+| [`require("input")`](06_Bundled_Libraries.md#the-input-automation-module) mouse (`move` / `click` / `mousedown` / `mouseup`) | [`15_input_automation`](#15_input_automationlua) |
+| [`require("input")`](06_Bundled_Libraries.md#the-input-automation-module) binds (`execBind` / `bindDown` / `bindUp`) | [`15_input_automation`](#15_input_automationlua) |
+| [`require("input")`](06_Bundled_Libraries.md#the-input-automation-module) reads (`keyPressed` / `mouseX` / `mouseY` / `mousePos`) | [`15_input_automation`](#15_input_automationlua) |
 
 ---
 
@@ -1910,4 +1914,129 @@ IS.Share("example_lifecycle_tick", nil)
 pcall(os.remove, helperPath)
 echo("")
 echo("Done. The same controls work from the console: lua -pause/-resume/-reload <name>.")
+```
+
+---
+
+## 15_input_automation.lua
+
+The optional [`input`](06_Bundled_Libraries.md#the-input-automation-module) module --
+typed keyboard / mouse / bind automation over InnerSpace's own input commands
+(`Press` / `MouseClick` / `mouse` / `bind`). Shows the read-only state helpers, the
+argument validation, and (gated behind a `SEND_REAL_INPUT` flag that is **false by
+default**, so the example is non-disruptive as shipped) the key presses, mouse
+moves/clicks, and bind firing. Game-agnostic. **Note:** this example can drive real
+input into your focused game window -- read the header before flipping the flag.
+
+```lua
+--------------------------------------------------------------------------------
+-- 15_input_automation.lua
+--------------------------------------------------------------------------------
+-- The optional `input` module -- typed keyboard / mouse / bind automation over
+-- InnerSpace's own input commands (Press / MouseClick / mouse / bind). It installs
+-- NO globals; you require it into a local. All game-agnostic.
+--
+--   Keyboard:
+--     * input.press(combo [, {nomodifiers=true}])   tap a key/combo (press+release)
+--     * input.keydown(combo) / input.keyup(combo)   press-and-hold, then release
+--       (aliases input.hold / input.release)
+--   Mouse:
+--     * input.move(x, y)                            move the cursor (client pixels)
+--     * input.click([button] [, x, y])              left/right/middle, optional move
+--     * input.mousedown([button]) / input.mouseup([button])   hold, then release
+--   Binds:
+--     * input.execBind(name)                        fire a named bind (press+release)
+--     * input.bindDown(name) / input.bindUp(name)   split the press and release
+--   Read-only state:
+--     * input.keyPressed(name)  -> bool             is that key/button held now?
+--     * input.mouseX() / mouseY() / mousePos()      cursor position, as numbers
+--
+-- !! THIS EXAMPLE SENDS REAL INPUT to your focused game window when you let it. !!
+-- The reads below are always safe. The parts that actually press keys, move the
+-- mouse, and click are gated behind SEND_REAL_INPUT, which is FALSE by default --
+-- so running it as-is only READS state and PRINTS what it *would* send. Flip the
+-- flag to true (and put a safe window in focus) to watch it drive real input.
+--
+-- HOW TO RUN:
+--     lua 15_input_automation
+--------------------------------------------------------------------------------
+
+local input = require("input")
+
+-- Flip to true to actually send keys / move+click the mouse into the focused game
+-- window. Leave false to keep this example read-only and non-disruptive.
+local SEND_REAL_INPUT = false
+
+--------------------------------------------------------------------------------
+-- 1. Read-only input state. Always safe -- no input is sent. (Values come from the
+--    game window this InnerSpace session is attached to; with none attached they
+--    simply read 0 / false.)
+--------------------------------------------------------------------------------
+echo("== Read-only input state (safe) ==")
+
+local x, y = input.mousePos()
+echo(string.format("cursor is at (%d, %d)   [mouseX=%d, mouseY=%d]",
+    x, y, input.mouseX(), input.mouseY()))
+
+for _, key in ipairs({ "shift", "ctrl", "alt", "space" }) do
+    echo(string.format("  input.keyPressed(%q) = %s", key, tostring(input.keyPressed(key))))
+end
+
+--------------------------------------------------------------------------------
+-- 2. Argument validation. The module rejects bad input with a Lua error, so a typo
+--    fails loudly instead of sending garbage. pcall lets us show that safely.
+--------------------------------------------------------------------------------
+echo("")
+echo("== Argument validation (safe) ==")
+
+local ok1 = pcall(input.press, "")               -- empty combo -> error
+echo("input.press('')            rejected? " .. tostring(not ok1))
+local ok2 = pcall(input.click, "sideways")       -- bad button -> error
+echo("input.click('sideways')    rejected? " .. tostring(not ok2))
+local ok3 = pcall(input.execBind, "bad]name")    -- ']' in bind name -> error
+echo("input.execBind('bad]name') rejected? " .. tostring(not ok3))
+
+--------------------------------------------------------------------------------
+-- 3. Sending input. Gated behind SEND_REAL_INPUT so the default run stays safe.
+--------------------------------------------------------------------------------
+echo("")
+if not SEND_REAL_INPUT then
+    echo("== Sending input (SKIPPED -- set SEND_REAL_INPUT=true to enable) ==")
+    echo("  would: input.press('h'); input.press('ctrl+1')")
+    echo("  would: input.keydown('w'); wait(0.5); input.keyup('w')")
+    echo("  would: input.move(400, 300); input.click('left', 400, 300)")
+    echo("  would: input.mousedown('right'); wait(0.2); input.mouseup('right')")
+    echo("  would: input.execBind('MoveForward')")
+else
+    echo("== Sending REAL input ==")
+
+    -- Keyboard: a tap, then a modified combo.
+    echo("press 'h', then 'ctrl+1'")
+    input.press("h")
+    input.press("ctrl+1")
+    wait(0.3)
+
+    -- Keyboard hold: press-and-hold, wait, release (how you'd auto-run/strafe).
+    echo("hold 'w' for 0.5s, then release")
+    input.keydown("w")
+    wait(0.5)
+    input.keyup("w")
+
+    -- Mouse: move the cursor, then a left click there; then a held right-click.
+    echo("move to (400,300) and left-click")
+    input.click("left", 400, 300)
+    wait(0.2)
+    echo("hold right button 0.2s, then release")
+    input.mousedown("right")
+    wait(0.2)
+    input.mouseup("right")
+
+    -- Binds: fire a named InnerSpace bind (no-op if you have not defined one).
+    echo("execBind('MoveForward')  (define it with the Bind command first)")
+    input.execBind("MoveForward")
+end
+
+echo("")
+echo("Done. input is optional -- every call maps to an InnerSpace command you could")
+echo("also issue by hand: IS.Execute('Press ...' / 'MouseClick ...' / 'Mouse:...').")
 ```
