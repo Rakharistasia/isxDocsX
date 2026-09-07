@@ -36,7 +36,7 @@ Read them in order the first time; after that use them as a reference.
 | [`05_Building_GUIs.md`](05_Building_GUIs.md) | Building and driving UIs from Lua -- the **LavishGUI 2** (JSON, newer) `lgui2` module and its **LavishGUI 1** (XML, older) `lgui1` sibling: load a package/file (or an inline Lua table), find elements, read / set their state, show / hide them, and wire a button straight to a Lua callback. |
 | [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md) | The `require`-able modules that ship inside ISXLUA (`cjson`, `lfs`, `lpeg`, `serpent`, `inspect`, `json`, `re`, `socket` networking, `zlib` compression, `lsqlite3` database, `lgui2` / `lgui1` UIs, `middleclass` classes, the `Penlight` `pl.*` standard-library extensions, and the optional `isxlua` bridge/runtime convenience layer) and how to load your own loose modules. |
 | [`07_Migration_Gotchas.md`](07_Migration_Gotchas.md) | The differences that will bite a LavishScript scripter moving to Lua. **Read this if you know LavishScript.** |
-| [`08_Examples.md`](08_Examples.md) | Complete, runnable scripts -- simple (hello world, reading game data, a wait loop, an event handler) and larger realistic ones that combine them. (These are concrete and game-specific, unlike the generic topics above.) |
+| [`08_Examples.md`](08_Examples.md) | The complete example set -- a runnable script for every ISXLUA feature and every bundled `require` module, opening with a feature -> example coverage matrix. The scripts also ship in `Install\Scripts\Examples\`. (Concrete and, for the game bits, game-specific, unlike the generic topics above.) |
 
 ## The five-minute version
 
