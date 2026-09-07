@@ -26,7 +26,7 @@ none requires the "with libisxgames" build.
 | `require("lsqlite3")` | lsqlite3 -- an embedded SQLite 3 database, backed by on-disk files or a fast `:memory:` database. |
 | `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** (JSON, newer) UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 | `require("lgui1")` | The sibling layer for **LavishGUI 1** (XML, older) UIs. Same chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
-| `require("isxlua")` | An optional, ISXLUA-specific convenience layer over the `IS` bridge and the runtime -- typed data reads, command/print/log sugar, and event/timer sugar. See below. |
+| `require("isxlua")` | An optional, ISXLUA-specific convenience layer over the `IS` bridge and the runtime -- typed data reads, command/print/log sugar, and event/timer sugar. See [below](#the-isxlua-helper-library). |
 | `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
 | `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
 
@@ -141,7 +141,7 @@ echo("HTTP status: " .. tostring(code))
 are available as `require("ltn12")` and `require("mime")`.
 
 > ISXLUA also has its own non-blocking `IS.HttpGet` / `IS.HttpPost` (see
-> [`04_Timing_And_Events.md`](04_Timing_And_Events.md)). Prefer those for simple
+> [`04_Timing_And_Events.md`](04_Timing_And_Events.md#asynchronous-http----ishttpget-ishttppost)). Prefer those for simple
 > fetches that must not stall the frame; reach for `socket` when you need raw
 > sockets or a protocol LuaSocket already speaks. LuaSocket calls are blocking, so
 > always set a timeout.

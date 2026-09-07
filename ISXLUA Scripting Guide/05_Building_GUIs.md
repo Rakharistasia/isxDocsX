@@ -92,7 +92,7 @@ gui.element("status"):setText("Ready"):show()
 > strings under the hood, the characters `]`, `[`, and `$` inside an element
 > *name* or a *value* can confuse the parser. Keep element names to plain
 > identifiers. If you need to set text that contains those characters, prefer
-> building the UI from a Lua table (below), where the text is serialized verbatim.
+> [building the UI from a Lua table](#building-ui-from-a-lua-table) (below), where the text is serialized verbatim.
 
 ---
 
@@ -353,7 +353,7 @@ the main loop, never in a handler.
   Lua functions.
 - It **does not** yet add a way to attach a Lua callback to an element that was
   loaded by *some other* script or file the module did not build. For those, use a
-  `code` handler with `luacall` (above), or `IS.AttachEvent` for a custom event.
+  `code` handler with `luacall` ([above](#callbacks-for-a-file-based-ui)), or `IS.AttachEvent` for a custom event.
 - Reading element state uses `IS.Parse`, so values come back as strings unless you
   use `el:getNumber` / `el:getBool`. That is fine for UIs; it also means there is
   no object-lifetime hazard to worry about (each call re-resolves the element by
@@ -463,7 +463,7 @@ value }` table. `children` is an array of child elements. (Complex property
 elements such as `<Font>`, which take nested children, are best authored in a
 file-based `.xml` package.)
 
-> The same **atomic-handler rule** applies as for LGUI2: a button handler runs to
+> The same **[atomic-handler rule](#the-atomic-handler-rule)** applies as for LGUI2: a button handler runs to
 > completion instantly and must not `wait()`. Set a flag and let your main loop do
 > slow work.
 
@@ -498,6 +498,6 @@ done.
 
 Like `lgui2`, it does **not** yet add a way to attach a Lua callback to an element
 that some *other* script or file loaded. For those, use a `luacall` handler in the
-XML (above), or `IS.AttachEvent` for a custom event.
+XML ([above](#callbacks-for-a-file-based-xml-ui)), or `IS.AttachEvent` for a custom event.
 
 Next: [`06_Bundled_Libraries.md`](06_Bundled_Libraries.md).

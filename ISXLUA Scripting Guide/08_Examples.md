@@ -15,63 +15,63 @@ NOT show `.lua` scripts, so use `luas`.) For a one-off line without a file, use
 > disagrees with the reference chapters, the reference chapters are current.
 
 The example files are a graded set: the early ones are game-agnostic and run with
-no game loaded; `11_game_character_eq2.lua` shows the object bridge in a real game
-(EverQuest II); the `12`/`13` files are sample autoexec content you activate by
+no game loaded; [`11_game_character_eq2.lua`](#11_game_character_eq2lua) shows the object bridge in a real game
+(EverQuest II); the [`12`](#12_autoexec_autoloadlua--sample-autoloadlua)/[`13`](#13_autoexec_autoload_eq2lua--sample-autoload_eq2lua) files are sample autoexec content you activate by
 renaming. Unlike the topic chapters, examples may be game-specific.
 
 ## Feature -> example coverage matrix
 
 | Feature / module | Example file(s) |
 |---|---|
-| `IS.Execute` | `01_bridge_and_events` (used throughout) |
-| `IS.Parse` | `01_bridge_and_events`, `04_reverse_bridge_and_ipc`, `08_isxlua_helpers` |
-| `print` / `echo` | `01_bridge_and_events` (used throughout) |
-| `ISXLUA.Version` / `.IsReady` / `.IsLoading` / `.InQuietMode` | `01_bridge_and_events` |
-| `IS.WarnUnknownGlobals` | `01_bridge_and_events`, `11_game_character_eq2` |
-| Script args (`args` table + `...`) | `01_bridge_and_events` |
-| Bare-global TLOs | `01_bridge_and_events` (ISXLUA), `11_game_character_eq2` (Me/Actor/EQ2/Zone/Target) |
-| `.Member` (native scalar leaves) | `01_bridge_and_events`, `11_game_character_eq2` |
-| `.Member(args)` | `11_game_character_eq2` (`Me.Group(1)`), `01_bridge_and_events` (`ISXLUA.Call(name, n)`) |
-| `:Method(args)` | `11_game_character_eq2` |
-| `obj[i]` numeric index | `11_game_character_eq2` |
-| Typed getters (`:Int`/`:Number`/`:Bool`/`:Str`/`:LSType`) | `01_bridge_and_events`, `11_game_character_eq2` |
-| `:IsNull` / `:Exists` / global `Exists(x)` | `01_bridge_and_events`, `11_game_character_eq2` |
-| Object coercion (`tostring`/concat) + scalar operators | `01_bridge_and_events`, `11_game_character_eq2` |
-| Typed-numeric arg coercion (int/float/bool) | `01_bridge_and_events`, `11_game_character_eq2` |
-| `wait(seconds)` / `wait(seconds, condfn)` | `02_timing_and_async` |
-| `waitframe()` | `01_bridge_and_events`, `02_timing_and_async` |
-| `waituntil(condfn [, timeout])` | `02_timing_and_async`, `05_http_and_networking`, `11_game_character_eq2` |
-| `waitforevent(name [, timeout])` | `02_timing_and_async` |
-| `setTimeout` / `setInterval` / `clearTimer` | `02_timing_and_async` |
-| `await(starter [, timeout])` (callback -> linear) | `02_timing_and_async`, `05_http_and_networking` |
-| `IS.AttachEvent` / `IS.AttachEventTyped` | `01_bridge_and_events` |
-| `IS.DetachEvent` / `IS.FireEvent` | `01_bridge_and_events`, `02_timing_and_async` |
-| `IS.EventSource()` | `01_bridge_and_events` |
-| `IS.SaveTable` / `IS.LoadTable` | `03_persistence_and_settings`, `12_autoexec_autoload` |
-| `IS.Settings` (Set/Get/GetString/Exists/Delete/Section/Settings/Sets/Name/Save/Load/Clear/Sort) | `03_persistence_and_settings` |
-| `IS.Register` / `IS.Unregister` | `04_reverse_bridge_and_ipc` |
-| `${ISXLUA.Call[...]}` / `luacall` | `04_reverse_bridge_and_ipc` |
-| `IS.Share` / `IS.Shared` | `04_reverse_bridge_and_ipc`, `14_pause_resume_reload` |
-| `IS.Subscribe` / `IS.Publish` / `IS.Unsubscribe` | `04_reverse_bridge_and_ipc` |
-| Autoexec `autoload.lua` | `12_autoexec_autoload` |
-| Per-game autoexec `autoload_<game>.lua` | `13_autoexec_autoload_eq2` |
-| Pause / resume / reload (`IS.PauseScript`/`ResumeScript`/`ReloadScript` + `lua -pause`/`-resume`/`-reload`) | `14_pause_resume_reload` |
-| Commands `lua` / `endlua` / `luas` | `14_pause_resume_reload` (+ every file's how-to-run) |
-| `IS.HttpGet` / `IS.HttpPost` (table body: JSON + form) + `IS.HttpGetSync` / `IS.HttpPostSync` | `05_http_and_networking` |
-| `require("socket")` + `socket.http` / `socket.url` / `ltn12` / `mime` | `05_http_and_networking` |
-| `require("cjson")` (+ `cjson.safe`) | `06_data_libraries`, `05_http_and_networking` |
-| `require("json")` | `06_data_libraries` |
-| `require("serpent")` | `06_data_libraries` |
-| `require("inspect")` | `06_data_libraries` |
-| `require("lpeg")` / `require("re")` | `06_data_libraries` |
-| `require("lfs")` | `06_data_libraries` |
-| `require("zlib")` | `06_data_libraries` |
-| `require("lsqlite3")` | `06_data_libraries` |
-| `require("middleclass")` | `07_oop_and_utilities` |
-| `require("pl.*")` (Penlight: class/List/Map/Set/tablex/stringx/pretty/seq + aggregate) | `07_oop_and_utilities` |
-| `require("isxlua")` (helper library) | `08_isxlua_helpers` |
-| `require("lgui2")` | `09_gui_lgui2` |
-| `require("lgui1")` | `10_gui_lgui1` |
+| [`IS.Execute`](02_The_IS_Bridge.md#isexecutecommand----run-a-command) | [`01_bridge_and_events`](#01_bridge_and_eventslua) (used throughout) |
+| [`IS.Parse`](02_The_IS_Bridge.md#isparsedatasequence----evaluate-a--expression) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua), [`08_isxlua_helpers`](#08_isxlua_helperslua) |
+| [`print` / `echo`](02_The_IS_Bridge.md#print-and-echo----console-output) | [`01_bridge_and_events`](#01_bridge_and_eventslua) (used throughout) |
+| [`ISXLUA.Version` / `.IsReady` / `.IsLoading` / `.InQuietMode`](01_Getting_Started.md#the-isxlua-object) | [`01_bridge_and_events`](#01_bridge_and_eventslua) |
+| [`IS.WarnUnknownGlobals`](02_The_IS_Bridge.md#iswarnunknownglobalsenabled----control-the-unknown-global-warning) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [Script args](01_Getting_Started.md#script-arguments) (`args` table + `...`) | [`01_bridge_and_events`](#01_bridge_and_eventslua) |
+| [Bare-global TLOs](03_Object_Model.md#top-level-objects-are-bare-lua-globals) | [`01_bridge_and_events`](#01_bridge_and_eventslua) (ISXLUA), [`11_game_character_eq2`](#11_game_character_eq2lua) (Me/Actor/EQ2/Zone/Target) |
+| [`.Member`](03_Object_Model.md#members-objmember-and-objmemberargs) (native scalar leaves) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [`.Member(args)`](03_Object_Model.md#members-objmember-and-objmemberargs) | [`11_game_character_eq2`](#11_game_character_eq2lua) (`Me.Group(1)`), [`01_bridge_and_events`](#01_bridge_and_eventslua) (`ISXLUA.Call(name, n)`) |
+| [`:Method(args)`](03_Object_Model.md#methods-objmethodargs) | [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [`obj[i]`](03_Object_Model.md#numeric-indexing-obji) numeric index | [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [Typed getters](03_Object_Model.md#typed-getters-for-coercing-an-object-to-a-scalar) (`:Int`/`:Number`/`:Bool`/`:Str`/`:LSType`) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [`:IsNull` / `:Exists` / global `Exists(x)`](03_Object_Model.md#testing-whether-something-exists) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [Object coercion](03_Object_Model.md#object-wrappers) (`tostring`/concat) + scalar operators | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [Typed-numeric arg coercion](03_Object_Model.md#passing-arguments-numbers-and-booleans-convert-automatically) (int/float/bool) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [`wait(seconds)` / `wait(seconds, condfn)`](04_Timing_And_Events.md#waitseconds-and-waitframe) | [`02_timing_and_async`](#02_timing_and_asynclua) |
+| [`waitframe()`](04_Timing_And_Events.md#waitseconds-and-waitframe) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`02_timing_and_async`](#02_timing_and_asynclua) |
+| [`waituntil(condfn [, timeout])`](04_Timing_And_Events.md#waituntilcondfn-timeoutseconds----wait-for-a-condition) | [`02_timing_and_async`](#02_timing_and_asynclua), [`05_http_and_networking`](#05_http_and_networkinglua), [`11_game_character_eq2`](#11_game_character_eq2lua) |
+| [`waitforevent(name [, timeout])`](04_Timing_And_Events.md#waitforeventname-timeoutseconds----wait-for-the-next-event) | [`02_timing_and_async`](#02_timing_and_asynclua) |
+| [`setTimeout` / `setInterval` / `clearTimer`](04_Timing_And_Events.md#timers----settimeout-setinterval-cleartimer) | [`02_timing_and_async`](#02_timing_and_asynclua) |
+| [`await(starter [, timeout])`](04_Timing_And_Events.md#awaitstarter-timeoutseconds----turn-a-callback-into-a-linear-call) (callback -> linear) | [`02_timing_and_async`](#02_timing_and_asynclua), [`05_http_and_networking`](#05_http_and_networkinglua) |
+| [`IS.AttachEvent` / `IS.AttachEventTyped`](04_Timing_And_Events.md#isattacheventname-fn) | [`01_bridge_and_events`](#01_bridge_and_eventslua) |
+| [`IS.DetachEvent` / `IS.FireEvent`](04_Timing_And_Events.md#isdetacheventname-fn) | [`01_bridge_and_events`](#01_bridge_and_eventslua), [`02_timing_and_async`](#02_timing_and_asynclua) |
+| [`IS.EventSource()`](04_Timing_And_Events.md#iseventsource) | [`01_bridge_and_events`](#01_bridge_and_eventslua) |
+| [`IS.SaveTable` / `IS.LoadTable`](02_The_IS_Bridge.md#issavetablename-tbl--isloadtablename----persistent-storage) | [`03_persistence_and_settings`](#03_persistence_and_settingslua), [`12_autoexec_autoload`](#12_autoexec_autoloadlua--sample-autoloadlua) |
+| [`IS.Settings`](02_The_IS_Bridge.md#issettingsname----a-hierarchical-persistent-config-store) (Set/Get/GetString/Exists/Delete/Section/Settings/Sets/Name/Save/Load/Clear/Sort) | [`03_persistence_and_settings`](#03_persistence_and_settingslua) |
+| [`IS.Register` / `IS.Unregister`](02_The_IS_Bridge.md#isregistername-fn--isunregistername----the-lua-side) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [`${ISXLUA.Call[...]}` / `luacall`](02_The_IS_Bridge.md#isxluacallname-args----call-and-get-a-value-the-clean-form) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [`IS.Share` / `IS.Shared`](04_Timing_And_Events.md#the-shared-value-store----isshare-isshared) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua), [`14_pause_resume_reload`](#14_pause_resume_reloadlua) |
+| [`IS.Subscribe` / `IS.Publish` / `IS.Unsubscribe`](04_Timing_And_Events.md#the-message-bus----ispublish-issubscribe-isunsubscribe) | [`04_reverse_bridge_and_ipc`](#04_reverse_bridge_and_ipclua) |
+| [Autoexec `autoload.lua`](01_Getting_Started.md#autoexec-autoloadlua) | [`12_autoexec_autoload`](#12_autoexec_autoloadlua--sample-autoloadlua) |
+| [Per-game autoexec `autoload_<game>.lua`](01_Getting_Started.md#per-game-autoexec-autoload_gamelua) | [`13_autoexec_autoload_eq2`](#13_autoexec_autoload_eq2lua--sample-autoload_eq2lua) |
+| [Pause / resume / reload](01_Getting_Started.md#pausing-resuming-and-reloading-scripts) (`IS.PauseScript`/`ResumeScript`/`ReloadScript` + `lua -pause`/`-resume`/`-reload`) | [`14_pause_resume_reload`](#14_pause_resume_reloadlua) |
+| [Commands `lua` / `endlua` / `luas`](01_Getting_Started.md#running-and-stopping-scripts) | [`14_pause_resume_reload`](#14_pause_resume_reloadlua) (+ every file's how-to-run) |
+| [`IS.HttpGet` / `IS.HttpPost`](04_Timing_And_Events.md#asynchronous-http----ishttpget-ishttppost) (table body: JSON + form) + `IS.HttpGetSync` / `IS.HttpPostSync` | [`05_http_and_networking`](#05_http_and_networkinglua) |
+| [`require("socket")`](06_Bundled_Libraries.md#networking-with-socket) + `socket.http` / `socket.url` / `ltn12` / `mime` | [`05_http_and_networking`](#05_http_and_networkinglua) |
+| [`require("cjson")`](06_Bundled_Libraries.md#json-with-cjson) (+ `cjson.safe`) | [`06_data_libraries`](#06_data_librarieslua), [`05_http_and_networking`](#05_http_and_networkinglua) |
+| [`require("json")`](06_Bundled_Libraries.md#json-with-cjson) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("serpent")`](06_Bundled_Libraries.md#serializing-tables-with-serpent) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("inspect")`](06_Bundled_Libraries.md#debugging-with-inspect) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("lpeg")` / `require("re")`](06_Bundled_Libraries.md#parsing-with-lpeg--re) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("lfs")`](06_Bundled_Libraries.md#listing-files-with-lfs) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("zlib")`](06_Bundled_Libraries.md#compression-with-zlib) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("lsqlite3")`](06_Bundled_Libraries.md#a-database-with-lsqlite3) | [`06_data_libraries`](#06_data_librarieslua) |
+| [`require("middleclass")`](06_Bundled_Libraries.md#classes-with-middleclass) | [`07_oop_and_utilities`](#07_oop_and_utilitieslua) |
+| [`require("pl.*")`](06_Bundled_Libraries.md#standard-library-extensions-with-penlight) (Penlight: class/List/Map/Set/tablex/stringx/pretty/seq + aggregate) | [`07_oop_and_utilities`](#07_oop_and_utilitieslua) |
+| [`require("isxlua")`](06_Bundled_Libraries.md#the-isxlua-helper-library) (helper library) | [`08_isxlua_helpers`](#08_isxlua_helperslua) |
+| [`require("lgui2")`](05_Building_GUIs.md#building-guis-lavishgui-2) | [`09_gui_lgui2`](#09_gui_lgui2lua) |
+| [`require("lgui1")`](05_Building_GUIs.md#the-older-system-lavishgui-1-lgui1) | [`10_gui_lgui1`](#10_gui_lgui1lua) |
 
 ---
 
