@@ -170,6 +170,36 @@ end)
 - Handlers **auto-detach when their script ends** -- you do not have to clean up
   on exit.
 
+### `IS.AttachEventTyped(name, fn)`
+
+Exactly like `IS.AttachEvent`, but your handler receives each argument as its
+**natural Lua type** instead of a string:
+
+- an argument that is a whole number becomes a Lua **number** (an integer or a
+  float, whichever the text represents),
+- `"TRUE"` / `"FALSE"` becomes a **boolean**,
+- anything else stays a **string**.
+
+```lua
+-- default: every arg is a string
+IS.AttachEvent("MyScript_onData", function(count, ratio, ok)
+    -- count == "3", ratio == "1.5", ok == "TRUE"  (all strings)
+end)
+
+-- typed: args arrive as number / number / boolean
+IS.AttachEventTyped("MyScript_onData", function(count, ratio, ok)
+    -- count == 3 (number), ratio == 1.5 (number), ok == true (boolean)
+    if ok and count > 0 then
+        echo(("%d items, ratio %.2f"):format(count, ratio))
+    end
+end)
+```
+
+This is **opt-in**: `IS.AttachEvent` is unchanged and still delivers strings, so
+existing scripts are unaffected. Use whichever you prefer per handler. Everything
+else is the same -- multiple handlers, auto-detach on script end, `IS.EventSource()`,
+and detaching. Detach a typed handler with the ordinary `IS.DetachEvent(name, fn)`.
+
 ### `IS.DetachEvent(name, fn)`
 
 Removes a handler you previously attached (matched by identity). Returns `true` if
