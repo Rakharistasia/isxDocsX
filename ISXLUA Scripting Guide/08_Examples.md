@@ -826,7 +826,7 @@ else
     -- 3a. A simple async GET. We fire it, then wait (bounded) for the callback.
     do
         local done, ok, status = false, nil, nil
-        IS.HttpGet("https://www.google.com/generate_204", function(o, s, body)
+        IS.HttpGet("https://httpbin.org/get", function(o, s, body)
             done, ok, status = true, o, s
         end)
         waituntil(function() return done end, 15)
@@ -871,7 +871,7 @@ else
     -- suspends the script until resolve(...) runs inside the completion callback.
     do
         local ok, status, body = await(function(resolve)
-            IS.HttpGet("https://www.google.com/generate_204", function(o, s, b)
+            IS.HttpGet("https://httpbin.org/get", function(o, s, b)
                 resolve(o, s, b)
             end)
         end)
@@ -883,7 +883,7 @@ else
     -- as inline calls. They ship with the libisxgames build too, but feature-detect
     -- them separately to be safe. Each returns (ok, status, body), like the callback.
     if IS.HttpGetSync then
-        local ok, status, body = IS.HttpGetSync("https://www.google.com/generate_204")
+        local ok, status, body = IS.HttpGetSync("https://httpbin.org/get")
         echo(string.format("IS.HttpGetSync -> ok=%s status=%s bytes=%s",
             tostring(ok), tostring(status), tostring(body and #body or 0)))
 
@@ -903,8 +903,8 @@ else
     -- concurrent requests safe: each callback below receives its own request's result.
     do
         local aDone, aStatus, bDone, bStatus = false, nil, false, nil
-        IS.HttpGet("https://www.google.com/generate_204", function(o, s, body) aDone, aStatus = true, s end)
-        IS.HttpGet("https://www.google.com/generate_204", function(o, s, body) bDone, bStatus = true, s end)
+        IS.HttpGet("https://httpbin.org/get", function(o, s, body) aDone, aStatus = true, s end)
+        IS.HttpGet("https://httpbin.org/get", function(o, s, body) bDone, bStatus = true, s end)
         waituntil(function() return aDone and bDone end, 15)
         echo(string.format("Two concurrent same-URL GETs each got their OWN response -> A status=%s, B status=%s",
             tostring(aStatus), tostring(bStatus)))
