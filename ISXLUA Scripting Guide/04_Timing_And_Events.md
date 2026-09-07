@@ -316,6 +316,72 @@ queue some data for your main loop (which *can* wait) to act on.
 The resolution is one frame, so a very small interval (or `0`) simply runs the
 callback about once per frame.
 
+## `await(starter, timeoutSeconds)` -- turn a callback into a linear call
+
+Many useful things are **callback-style**: you hand a function to some API and it
+calls that function *later* -- when a response arrives, a timer fires, or an event
+happens. `await` lets you write that as a straight line instead of a nest of
+callbacks. You give it a **starter** function; `await` immediately calls your starter
+with a `resolve` function, then **suspends your script** until something calls
+`resolve(...)`. Whatever values you pass to `resolve` become the return values of
+`await`:
+
+```lua
+local value = await(function(resolve)
+    -- start some async work; call resolve(...) when it finishes
+    setTimeout(1, function() resolve(42) end)
+end)
+-- execution reaches here only after resolve was called; value == 42
+echo("got " .. value)
+```
+
+The real payoff is turning any callback API into a single linear call. For example,
+over the asynchronous [`IS.HttpGet`](#asynchronous-http----ishttpget-ishttppost)
+described below:
+
+```lua
+local ok, status, body = await(function(resolve)
+    IS.HttpGet("https://example.com/api/status", function(o, s, b)
+        resolve(o, s, b)
+    end)
+end)
+if ok then echo("status " .. status .. ", " .. #body .. " bytes") end
+```
+
+`resolve` may be called from any later callback -- an event handler, a
+[timer](#timers----settimeout-setinterval-cleartimer), or an HTTP completion -- and it
+is safe to call from all of them. Calling `resolve` **more than once**, or **after a
+timeout**, is harmless: only the first call counts, the rest are ignored.
+
+### Optional timeout
+
+Pass a second argument -- a number of seconds -- to bound the wait. If nothing calls
+`resolve` in time, `await` gives up and returns the sentinel **`nil, "timeout"`**:
+
+```lua
+local value, err = await(function(resolve)
+    -- ... start work that might never resolve ...
+end, 5)   -- wait at most 5 seconds
+if value == nil and err == "timeout" then
+    echo("timed out")
+end
+```
+
+Omit the timeout (or pass `0` or less) to wait indefinitely. On success `await`
+returns exactly the values passed to `resolve`, so use the `nil, "timeout"` pair to
+tell a timeout apart from a normal result.
+
+### `await` suspends -- so it is scheduled-script-only
+
+Because `await` **yields** your script (like [`wait()`](#waitseconds-and-waitframe)
+and [`waitforevent()`](#waitforeventname-timeoutseconds----wait-for-the-next-event)),
+it can only be used from a running script (`lua`/`run`), never from a `lua -c "..."`
+one-liner, and never **inside** an event handler, a timer, or any other callback
+(those run atomically and cannot yield -- attempting `await` there is reported as a
+clean error, not a crash). That rule is about the code that *calls* `await`; the
+`resolve` function it hands you is specifically designed to be called from exactly
+those callbacks.
+
 ## Asynchronous HTTP -- `IS.HttpGet`, `IS.HttpPost`
 
 > **Requires the "with libisxgames" build of ISXLUA.** These two functions exist
@@ -432,6 +498,46 @@ console (with a traceback) and never crashes the game.
   address, correlation for that one request falls back to matching by URL, which is
   only ambiguous in the rare case of several redirected same-URL requests in flight at
   once.)
+
+### Synchronous HTTP -- `IS.HttpGetSync`, `IS.HttpPostSync`
+
+> **Requires the "with libisxgames" build**, exactly like the asynchronous pair above
+> -- these are **absent** from the `IS` table in the plain build, so feature-detect
+> with `if IS.HttpGetSync then ... end`.
+
+If you would rather fetch **inline** than write a callback, these two wrappers are
+built on [`await`](#awaitstarter-timeoutseconds----turn-a-callback-into-a-linear-call)
+plus the asynchronous functions above. They **suspend your script** until the response
+arrives, then return `(ok, status, body)` -- the very same three values the async
+callback receives:
+
+- **`IS.HttpGetSync(url)`** -> `ok, status, body`
+- **`IS.HttpPostSync(url, body [, contentType])`** -> `ok, status, body`
+
+```lua
+local ok, status, body = IS.HttpGetSync("https://example.com/api/status")
+if ok then
+    echo("status " .. status .. ", " .. #body .. " bytes")
+else
+    echo("request failed (status " .. status .. ")")
+end
+```
+
+`IS.HttpPostSync` keeps the **same body handling** as the asynchronous
+[`IS.HttpPost`](#asynchronous-http----ishttpget-ishttppost): a string body is sent
+as-is, and a table body is JSON-encoded by default (or url-encoded when `contentType`
+names a form type):
+
+```lua
+local ok, status, body = IS.HttpPostSync(
+    "https://example.com/api/report", { name = "test", value = 42 })
+```
+
+Because they suspend, the same rule as `await` applies: call them **only from a
+running script**, never from a one-liner or inside an event/timer/callback handler.
+They do not take an `await`-style timeout of their own -- they rely on the request's
+own timeout (about 30 seconds), so a failure or timeout returns `ok = false,
+status = 0` just like the async callback (never `await`'s `nil, "timeout"` sentinel).
 
 ## Sharing data between scripts
 

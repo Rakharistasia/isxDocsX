@@ -43,6 +43,7 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | `waituntil(condfn [, timeout])` | `02_timing_and_async`, `05_http_and_networking`, `11_game_character_eq2` |
 | `waitforevent(name [, timeout])` | `02_timing_and_async` |
 | `setTimeout` / `setInterval` / `clearTimer` | `02_timing_and_async` |
+| `await(starter [, timeout])` (callback -> linear) | `02_timing_and_async`, `05_http_and_networking` |
 | `IS.AttachEvent` / `IS.AttachEventTyped` | `01_bridge_and_events` |
 | `IS.DetachEvent` / `IS.FireEvent` | `01_bridge_and_events`, `02_timing_and_async` |
 | `IS.EventSource()` | `01_bridge_and_events` |
@@ -56,7 +57,7 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | Per-game autoexec `autoload_<game>.lua` | `13_autoexec_autoload_eq2` |
 | Pause / resume / reload (`IS.PauseScript`/`ResumeScript`/`ReloadScript` + `lua -pause`/`-resume`/`-reload`) | `14_pause_resume_reload` |
 | Commands `lua` / `endlua` / `luas` | `14_pause_resume_reload` (+ every file's how-to-run) |
-| `IS.HttpGet` / `IS.HttpPost` (table body: JSON + form) | `05_http_and_networking` |
+| `IS.HttpGet` / `IS.HttpPost` (table body: JSON + form) + `IS.HttpGetSync` / `IS.HttpPostSync` | `05_http_and_networking` |
 | `require("socket")` + `socket.http` / `socket.url` / `ltn12` / `mime` | `05_http_and_networking` |
 | `require("cjson")` (+ `cjson.safe`) | `06_data_libraries`, `05_http_and_networking` |
 | `require("json")` | `06_data_libraries` |
@@ -254,8 +255,8 @@ echo("Done. (See 04_reverse_bridge_and_ipc.lua for calling Lua FROM LavishScript
 ## 02_timing_and_async.lua
 
 Every timing and async primitive -- `wait`, `wait(sec, condfn)`, `waitframe`,
-`waituntil`, `waitforevent`, and the `setTimeout`/`setInterval`/`clearTimer`
-timers. Game-agnostic.
+`waituntil`, `waitforevent`, the `setTimeout`/`setInterval`/`clearTimer` timers,
+and `await` (turning a callback into a linear call). Game-agnostic.
 
 ```lua
 --------------------------------------------------------------------------------
@@ -271,6 +272,7 @@ timers. Game-agnostic.
 --   * setTimeout(seconds, fn)      run fn once, N seconds from now
 --   * setInterval(seconds, fn)     run fn repeatedly every N seconds
 --   * clearTimer(handle)           cancel a timer of either kind
+--   * await(starter [, timeout])   turn a callback into a linear call
 --
 -- Timers and waitforevent are driven by the per-frame scheduler -- no threads.
 -- Timer callbacks run atomically (like event handlers): they must NOT wait().
@@ -365,8 +367,37 @@ do
     echo("waitforevent that never fired -> " .. tostring(none))   -- false
 end
 
-echo("Done. (Timers/waitforevent yield the main coroutine, so they cannot be used")
-echo("inside an event handler or a timer callback -- those run atomically.)")
+--------------------------------------------------------------------------------
+-- 6. await(starter [, timeout]) -- turn any callback-style API into a linear
+--    call. await runs starter(resolve) once, then SUSPENDS the script until
+--    something calls resolve(...); the values passed to resolve become await's
+--    return values. Any later callback (a timer, an event, an HTTP completion)
+--    can resolve it. With a timeout, an unresolved wait returns the sentinel
+--    (nil, "timeout"). Like wait()/waitforevent() it yields, so it cannot be
+--    used inside an event handler or a timer callback.
+--------------------------------------------------------------------------------
+do
+    -- Turn a setTimeout callback into a straight-line value: instead of nesting
+    -- the rest of the work inside the callback, we await its resolve.
+    local value = await(function(resolve)
+        setTimeout(0.3, function() resolve(42) end)
+    end)
+    echo("await(resolve 42) -> " .. tostring(value))             -- 42
+
+    -- resolve can deliver several values; await returns them all, in order.
+    local a, b, c = await(function(resolve)
+        setTimeout(0.2, function() resolve("x", 2, true) end)
+    end)
+    echo(string.format("await multi -> a=%s b=%s c=%s",
+        tostring(a), tostring(b), tostring(c)))
+
+    -- The timeout path: nobody resolves, so after 0.5s await returns nil,"timeout".
+    local v, err = await(function(resolve) --[[ never resolves ]] end, 0.5)
+    echo(string.format("await timeout -> v=%s err=%s", tostring(v), tostring(err)))
+end
+
+echo("Done. (Timers/waitforevent/await yield the main coroutine, so they cannot be")
+echo("used inside an event handler or a timer callback -- those run atomically.)")
 ```
 
 ---
@@ -622,8 +653,10 @@ echo("Done. (Registrations and subscriptions also auto-clear on script end.)")
 Networking two ways: LuaSocket (`socket`, `socket.http`, `socket.url`, `ltn12`,
 `mime`) which is bundled in both builds and works everywhere, and the async
 `IS.HttpGet`/`IS.HttpPost` (feature-detected -- "with libisxgames" build only,
-including a table body auto-encoded to JSON or url-encoded form). Bounded and
-best-effort, so it never hangs offline.
+including a table body auto-encoded to JSON or url-encoded form). Also shows
+`await` turning the async callback into a linear call and the inline
+`IS.HttpGetSync`/`IS.HttpPostSync` wrappers. Bounded and best-effort, so it never
+hangs offline.
 
 ```lua
 --------------------------------------------------------------------------------
@@ -642,6 +675,9 @@ best-effort, so it never hangs offline.
 --     * feature-detected (absent in the plain build), non-blocking, callback-based
 --     * IS.HttpPost accepts a Lua TABLE body (auto-encoded to JSON, or url-encoded
 --       when the content type names form encoding)
+--     * await(...) turns the callback into a single LINEAR call
+--     * IS.HttpGetSync / IS.HttpPostSync -- INLINE wrappers over await (same
+--       "with libisxgames" build only); feature-detected; return (ok, status, body)
 --
 -- Network calls are bounded and best-effort here: if the machine is offline the
 -- demo just reports that and moves on -- it never hangs.
@@ -764,6 +800,36 @@ else
         waituntil(function() return done end, 15)
         echo("IS.HttpPost (form-encoded) completed? " .. tostring(done) ..
              " ok=" .. tostring(ok))
+    end
+
+    -- 3d. await turns the async callback into a LINEAR call: no nested callback,
+    -- no done/ok/status flags + waituntil -- just a straight assignment. await
+    -- suspends the script until resolve(...) runs inside the completion callback.
+    do
+        local ok, status, body = await(function(resolve)
+            IS.HttpGet("https://www.google.com/generate_204", function(o, s, b)
+                resolve(o, s, b)
+            end)
+        end)
+        echo(string.format("await IS.HttpGet -> ok=%s status=%s bytes=%s",
+            tostring(ok), tostring(status), tostring(body and #body or 0)))
+    end
+
+    -- 3e. IS.HttpGetSync / IS.HttpPostSync -- that same await pattern pre-packaged
+    -- as inline calls. They ship with the libisxgames build too, but feature-detect
+    -- them separately to be safe. Each returns (ok, status, body), like the callback.
+    if IS.HttpGetSync then
+        local ok, status, body = IS.HttpGetSync("https://www.google.com/generate_204")
+        echo(string.format("IS.HttpGetSync -> ok=%s status=%s bytes=%s",
+            tostring(ok), tostring(status), tostring(body and #body or 0)))
+
+        -- HttpPostSync keeps the async POST's table-body handling (JSON by default).
+        local pok, pstatus = IS.HttpPostSync("https://httpbin.org/post",
+            { name = "isxlua", value = 42 })
+        echo(string.format("IS.HttpPostSync -> ok=%s status=%s",
+            tostring(pok), tostring(pstatus)))
+    else
+        echo("IS.HttpGetSync / IS.HttpPostSync not present in this build.")
     end
 end
 
