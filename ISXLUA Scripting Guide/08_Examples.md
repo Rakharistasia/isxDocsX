@@ -63,6 +63,7 @@ renaming. Unlike the topic chapters, examples may be game-specific.
 | [Commands `lua` / `endlua` / `luas`](01_Getting_Started.md#running-and-stopping-scripts) | [`14_pause_resume_reload`](#14_pause_resume_reloadlua) (+ every file's how-to-run) |
 | [`IS.HttpGet` / `IS.HttpPost`](04_Timing_And_Events.md#asynchronous-http----ishttpget-ishttppost) (table body: JSON + form) + `IS.HttpGetSync` / `IS.HttpPostSync` | [`05_http_and_networking`](#05_http_and_networkinglua) |
 | [`require("socket")`](06_Bundled_Libraries.md#networking-with-socket) + `socket.http` / `socket.url` / `ltn12` / `mime` | [`05_http_and_networking`](#05_http_and_networkinglua) |
+| [`require("ssl")` / `require("ssl.https")`](06_Bundled_Libraries.md#secure-sockets-tls-with-ssl) (TLS sockets + HTTPS) | [`17_tls_secure_sockets`](#17_tls_secure_socketslua) |
 | [`require("cjson")`](06_Bundled_Libraries.md#json-with-cjson) (+ `cjson.safe`) | [`06_data_libraries`](#06_data_librarieslua), [`05_http_and_networking`](#05_http_and_networkinglua) |
 | [`require("json")`](06_Bundled_Libraries.md#json-with-cjson) | [`06_data_libraries`](#06_data_librarieslua) |
 | [`require("serpent")`](06_Bundled_Libraries.md#serializing-tables-with-serpent) | [`06_data_libraries`](#06_data_librarieslua) |
@@ -2220,4 +2221,134 @@ echo("")
 echo("Done. relay needs the uplink running (always on for an InnerSpace game")
 echo("session) and reaches only sessions on the same uplink; it is fire-and-forget")
 echo("(relay an event back for a reply).")
+```
+
+---
+
+## 17_tls_secure_sockets.lua
+
+[Secure sockets (TLS)](06_Bundled_Libraries.md#secure-sockets-tls-with-ssl) via LuaSec --
+[`require("ssl.https")`](06_Bundled_Libraries.md#secure-sockets-tls-with-ssl) for `https://`
+URLs (the same call shape as [`socket.http`](06_Bundled_Libraries.md#networking-with-socket)),
+and [`require("ssl")`](06_Bundled_Libraries.md#secure-sockets-tls-with-ssl)'s `ssl.wrap` +
+`dohandshake` to put TLS around any raw [`socket.tcp`](06_Bundled_Libraries.md#networking-with-socket)
+connection. Game-agnostic. **Safe by default:** every call is bounded by a timeout and
+degrades cleanly when offline, and the module is feature-detected. Certificate
+verification is left at LuaSec's default `none` (encrypted, but the server identity is
+not checked -- no CA bundle ships); the header comments show how to turn it on. For
+frame-safe fetches, prefer the non-blocking
+[`IS.HttpGet` / `IS.HttpPost`](04_Timing_And_Events.md#asynchronous-http----ishttpget-ishttppost)
+shown in [`05_http_and_networking`](#05_http_and_networkinglua).
+
+```lua
+--------------------------------------------------------------------------------
+-- 17_tls_secure_sockets.lua
+--------------------------------------------------------------------------------
+-- Demonstrates TLS / secure sockets via LuaSec, bundled as:
+--
+--     * require("ssl")         wrap a raw socket.tcp connection in TLS (any protocol)
+--     * require("ssl.https")   HTTPS -- socket.http wrapped in TLS, for https:// URLs
+--
+-- LuaSec is layered on the bundled LuaSocket and a statically-linked OpenSSL, and
+-- is present in BOTH ISXLUA builds. It is feature-detected here anyway (require in a
+-- pcall) so the script degrades cleanly if it is ever absent.
+--
+-- Network calls are bounded and best-effort: if the machine is offline the demo
+-- just reports that and moves on -- it never hangs. Certificate verification is left
+-- at LuaSec's default "none" (encrypted, but the server identity is NOT checked --
+-- no trusted-CA bundle ships); pass verify="peer" + a cafile you provide to validate.
+--
+-- HOW TO RUN:
+--     lua 17_tls_secure_sockets
+--------------------------------------------------------------------------------
+
+-- Feature-detect LuaSec. require() raises if a module is missing, so guard it.
+local okSsl, ssl = pcall(require, "ssl")
+if not okSsl then
+    echo("[SKIP] require(\"ssl\") is not available in this build -- TLS demo skipped.")
+    echo("Done.")
+    return
+end
+
+echo("== LuaSec loaded ==")
+echo("ssl._VERSION = " .. tostring(ssl._VERSION))
+
+--------------------------------------------------------------------------------
+-- 1. The easy path: ssl.https, which mirrors socket.http but speaks HTTPS.
+--    A 204 endpoint returns no body and is the cheapest way to prove a full TLS
+--    handshake + request/response round-trip.
+--------------------------------------------------------------------------------
+echo("")
+echo("== ssl.https (HTTPS the easy way) ==")
+
+do
+    local https = require("ssl.https")
+    https.TIMEOUT = 10   -- seconds; keeps us from hanging if the host is unreachable
+
+    -- On success https.request returns (body, code, headers, statusline); on failure
+    -- (nil, errorstring). pcall prepends its own ok, so unpack carefully.
+    local ok, rbody, rcode = pcall(function()
+        local b, c = https.request("https://www.google.com/generate_204")
+        return b, c
+    end)
+    if ok and type(rcode) == "number" then
+        echo(string.format("ssl.https GET generate_204 -> HTTP %d (%d body bytes)",
+            rcode, rbody and #rbody or 0))
+    else
+        -- On failure rcode holds the LuaSec/socket error string (or the pcall error).
+        echo("ssl.https request could not complete (offline?): " .. tostring(rcode or rbody))
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 2. The general path: wrap a raw socket.tcp in TLS with ssl.wrap + dohandshake,
+--    then use it like any socket. This is what you reach for when you need a
+--    protocol ssl.https does not cover (a secure line-based service, etc.).
+--------------------------------------------------------------------------------
+echo("")
+echo("== ssl.wrap + dohandshake (raw TLS socket) ==")
+
+do
+    local socket = require("socket")
+    local host, port = "www.google.com", 443
+
+    local sock = socket.tcp()
+    if not sock then
+        echo("Could not create a TCP socket -- skipped.")
+    else
+        sock:settimeout(10)                     -- bound the connect
+        local okc, cerr = sock:connect(host, port)
+        if not okc then
+            echo("TCP connect to " .. host .. ":" .. port ..
+                 " failed (offline?): " .. tostring(cerr) .. " -- skipped.")
+            sock:close()
+        else
+            -- Wrap the plain socket in TLS. verify="none" -> encrypted but unverified.
+            local conn, werr = ssl.wrap(sock, {
+                mode     = "client",
+                protocol = "any",               -- negotiate the best modern TLS
+                verify   = "none",
+                options  = "all",
+            })
+            if not conn then
+                echo("ssl.wrap failed: " .. tostring(werr) .. " -- skipped.")
+                sock:close()
+            else
+                conn:settimeout(10)             -- bound the handshake + I/O
+                local okh, herr = conn:dohandshake()
+                if not okh then
+                    echo("TLS handshake failed: " .. tostring(herr) .. " -- skipped.")
+                else
+                    -- A wrapped connection behaves like a normal socket afterward.
+                    conn:send("GET /generate_204 HTTP/1.0\r\nHost: " .. host .. "\r\n\r\n")
+                    local line = conn:receive("*l")     -- first response line
+                    echo("TLS handshake OK. First response line: " .. tostring(line))
+                end
+                conn:close()
+            end
+        end
+    end
+end
+
+echo("Done.")
 ```

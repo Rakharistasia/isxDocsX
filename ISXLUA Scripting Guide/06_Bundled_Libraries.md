@@ -6,8 +6,9 @@ is require-able only; none is installed as a global, so they never shadow your o
 variables or the top-level-object bridge.
 
 Most are MIT-licensed; the rest use equally permissive terms -- `zlib` the zlib license,
-`lsqlite3`'s underlying SQLite engine and `base64` the public domain, and `luaunit` the
-BSD license. All are bundled in **both** ISXLUA builds -- none requires the
+`lsqlite3`'s underlying SQLite engine and `base64` the public domain, `luaunit` the
+BSD license, and the OpenSSL that backs [`ssl`](#secure-sockets-tls-with-ssl) the Apache 2.0
+license. All are bundled in **both** ISXLUA builds -- none requires the
 "with libisxgames" build.
 
 ## The modules
@@ -23,6 +24,8 @@ BSD license. All are bundled in **both** ISXLUA builds -- none requires the
 | `require("json")` | A pure-Lua JSON implementation (a lightweight alternative to cjson). |
 | `require("re")` | LPeg's regex-like front-end (uses `lpeg` under the hood). |
 | `require("socket")` | LuaSocket -- TCP/UDP networking. Also brings `socket.http`, `socket.url`, `socket.ftp`, `socket.smtp`, `socket.tp`, `socket.headers`, and the `ltn12` / `mime` helpers. |
+| `require("ssl")` | LuaSec -- TLS/SSL over LuaSocket: wrap a `socket.tcp` connection in encryption, plus certificate access. See [Secure sockets](#secure-sockets-tls-with-ssl) below. |
+| `require("ssl.https")` | HTTPS -- `socket.http` wrapped in TLS, for `https://` URLs. Same call shape as `socket.http`. See [Secure sockets](#secure-sockets-tls-with-ssl) below. |
 | `require("zlib")` | lua-zlib -- deflate/inflate (zlib and gzip) compression, plus `adler32` / `crc32` checksums. |
 | `require("lsqlite3")` | lsqlite3 -- an embedded SQLite 3 database, backed by on-disk files or a fast `:memory:` database. |
 | `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** (JSON, newer) UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
@@ -152,6 +155,66 @@ are available as `require("ltn12")` and `require("mime")`.
 > fetches that must not stall the frame; reach for `socket` when you need raw
 > sockets or a protocol LuaSocket already speaks. LuaSocket calls are blocking, so
 > always set a timeout.
+
+### Secure sockets (TLS) with `ssl`
+
+`ssl` is LuaSec -- it adds **TLS/SSL** on top of [`socket`](#networking-with-socket), so a
+script can talk to `https://` endpoints and other encrypted services. Nothing extra to
+install; the encryption engine (OpenSSL) is built in.
+
+The easiest entry point is `ssl.https`, which mirrors `socket.http` but speaks HTTPS:
+
+```lua
+local https = require("ssl.https")
+
+local body, code, headers, status = https.request("https://example.com/")
+echo("HTTPS status: " .. tostring(code))
+if body then
+    echo("got " .. #body .. " bytes")
+end
+```
+
+For anything else, wrap a raw TCP connection yourself with `ssl.wrap` + `dohandshake`:
+
+```lua
+local socket = require("socket")
+local ssl    = require("ssl")
+
+local sock = assert(socket.tcp())
+sock:settimeout(10)                       -- never block the session forever
+assert(sock:connect("example.com", 443))
+
+-- Wrap the plain socket in TLS, then complete the handshake.
+local conn = assert(ssl.wrap(sock, {
+    mode     = "client",
+    protocol = "any",                     -- negotiate the best modern TLS
+    verify   = "none",                    -- see the certificate note below
+    options  = "all",
+}))
+conn:settimeout(10)
+assert(conn:dohandshake())
+
+conn:send("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n")
+echo(conn:receive("*l"))                  -- first response line
+conn:close()
+```
+
+After `dohandshake`, a wrapped `conn` behaves like a normal `socket` object -- `send`,
+`receive`, `settimeout`, `close` all work the same way.
+
+> **Certificate verification is off by default.** Both examples use `verify = "none"`,
+> so the connection is *encrypted* but the server's identity is **not** checked (no
+> trusted-CA bundle ships with ISXLUA). That is fine for talking to a host you already
+> trust, but it does not protect against a man-in-the-middle. To verify, point LuaSec at
+> a CA file you provide: `verify = "peer"`, `cafile = "path/to/cacert.pem"` (and, for a
+> hostname check, `conn:setoption` / the `verifyext` option per the LuaSec docs).
+
+> **Blocking, like `socket`.** `ssl` calls block the session, so always set a timeout on
+> both the underlying socket and the wrapped connection. For simple fetches that must not
+> stall the frame, prefer ISXLUA's non-blocking `IS.HttpGet` / `IS.HttpPost`
+> (see [`04_Timing_And_Events.md`](04_Timing_And_Events.md#asynchronous-http----ishttpget-ishttppost)),
+> which already do HTTPS; reach for `ssl` when you need raw TLS sockets or a protocol
+> `ssl.https` does not cover.
 
 ### Compression with `zlib`
 
