@@ -26,6 +26,7 @@ none requires the "with libisxgames" build.
 | `require("lsqlite3")` | lsqlite3 -- an embedded SQLite 3 database, backed by on-disk files or a fast `:memory:` database. |
 | `require("lgui2")` | An ergonomic layer for building and driving **LavishGUI 2** (JSON, newer) UIs from Lua. It has its own chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
 | `require("lgui1")` | The sibling layer for **LavishGUI 1** (XML, older) UIs. Same chapter -- see [`05_Building_GUIs.md`](05_Building_GUIs.md). |
+| `require("isxlua")` | An optional, ISXLUA-specific convenience layer over the `IS` bridge and the runtime -- typed data reads, command/print/log sugar, and event/timer sugar. See below. |
 | `require("middleclass")` | A small, widely-used object-orientation / class system: `class(name[, super])`, `:new(...)`, single inheritance, `:isInstanceOf`, mixins, operator metamethods. |
 | `require("pl.tablex")`, `require("pl.stringx")`, ... | [Penlight](https://lunarmodules.github.io/Penlight/) -- a broad standard-library extension. The whole `pl` tree is bundled: table utilities (`pl.tablex`), string utilities (`pl.stringx`), pretty-printing (`pl.pretty`), an OO system (`pl.class`), container classes (`pl.List` / `pl.Map` / `pl.Set` / `pl.OrderedMap`), plus `pl.data`, `pl.Date`, `pl.path`, `pl.dir`, `pl.seq`, `pl.func`, `pl.lexer`, `pl.template`, and more. |
 
@@ -263,6 +264,96 @@ echo(nums:sort():join(", "))                         -- 1, 2, 3, 4
 > `require("pl")` on its own loads the whole library lazily *into globals* -- handy
 > for exploration, but prefer requiring the specific `pl.*` submodules you use so
 > your script's globals stay clean.
+
+## The `isxlua` helper library
+
+`require("isxlua")` is a small, **optional** convenience layer written specifically
+for ISXLUA. Unlike the libraries above (which are general-purpose Lua projects), it
+just wraps the ISXLUA primitives you use most -- `IS.Parse` / `IS.Execute`, `echo`,
+the events layer, and the pulse timers -- to cut everyday boilerplate. Everything it
+does you can also do by hand; it is sugar, not a new capability. Keep it in a local
+(it installs no globals):
+
+```lua
+local isxlua = require("isxlua")
+```
+
+It is deliberately **curated**. It does **not** re-implement string/table/class
+utilities (use `pl.*` and `middleclass`), it does not rename `waituntil`, and it does
+not wrap JSON or persistence (those primitives are already one-liners).
+
+### Typed data reads
+
+These wrap `IS.Parse` and convert the result to a Lua type for you. **You pass the
+inner LavishScript expression** -- no `${ }` -- and the helper wraps it. (A string
+that already starts with `${` is used as-is, so an expression you built elsewhere
+still works.) Absent, empty, or `"NULL"` results resolve to the default you give,
+never a surprise error.
+
+```lua
+local isxlua = require("isxlua")
+
+local hp    = isxlua.num("Me.Health", 0)        -- a number, or 0 if not readable
+local name  = isxlua.str("Me.Name", "unknown")  -- a string, or "unknown" if absent
+local ready = isxlua.bool("ISXLUA.IsReady")     -- a real boolean
+local raw   = isxlua.parse("ISXLUA.Version")    -- the raw string, or nil
+
+if isxlua.exists("Me.Pet") then                 -- ${Me.Pet(exists)} == TRUE ?
+    echo("you have a pet")
+end
+```
+
+| Call | Returns |
+|---|---|
+| `isxlua.parse(expr)` | The raw string result, or `nil` (parse failure / result over the 8 KB cap). |
+| `isxlua.num(expr [, default])` | A number, or `default` (default `nil`) when the result is not numeric. |
+| `isxlua.bool(expr)` | `true` for `"TRUE"` / `"true"` / `"1"`; otherwise `false`. |
+| `isxlua.str(expr [, default])` | The string, or `default` (default `nil`) when it is `nil`, `""`, or `"NULL"`. |
+| `isxlua.exists(expr)` | `true` when `${<expr>(exists)}` is `TRUE`. Pass the inner expression. |
+
+> The [object model](03_Object_Model.md) already returns native numbers/strings for a
+> direct read like `Me.Health`, so reach for these mainly when you are building an
+> expression as a string, using bracketed index expressions, or want the uniform
+> "give me a value or this default" behavior.
+
+### Command and output sugar
+
+```lua
+local isxlua = require("isxlua")
+
+isxlua.exec("echo hello from %s", "isxlua")     -- string.format + IS.Execute
+isxlua.printf("loaded %d items in %.1fs", 12, 0.3)   -- string.format + echo
+
+isxlua.setLogPrefix("[MyBot]")                  -- optional leading tag
+isxlua.log("started")                           -- [MyBot] [LOG] started
+isxlua.warn("low health:", hp)                  -- [MyBot] [WARN] low health: 42
+isxlua.error("target lost")                     -- [MyBot] [ERROR] target lost
+```
+
+`exec` returns `IS.Execute`'s integer result. With no extra arguments it runs the
+command verbatim, so a literal `%` in a plain command is never treated as a format
+spec. The `log` / `warn` / `error` trio all just **echo** a tagged line -- `error`
+is a log *level*, not Lua's `error()`, so it never raises.
+
+### Event and timer sugar
+
+```lua
+local isxlua = require("isxlua")
+
+-- run a handler for exactly the FIRST firing of an event, then auto-detach:
+isxlua.once("SomeEvent", function(a, b)
+    echo("first fire only: " .. tostring(a))
+end)
+
+-- friendly names for the pulse timers (see 04_Timing_And_Events.md):
+local h = isxlua.every(1.0, function() echo("tick") end)   -- setInterval
+isxlua.after(5.0, function() isxlua.cancel(h) end)         -- setTimeout + clearTimer
+```
+
+`isxlua.after` / `every` / `cancel` are thin aliases for `setTimeout` /
+`setInterval` / `clearTimer`, sharing one vocabulary. As with any handler or timer
+callback, an `once` handler and the timer callbacks run atomically and must not
+`wait()`.
 
 ## Loading your own modules
 
