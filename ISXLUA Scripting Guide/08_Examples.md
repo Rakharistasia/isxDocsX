@@ -625,8 +625,11 @@ echo("LavishScript's view via ${example_ammo}: " .. tostring(IS.Parse("${example
 -- IS.CallAtom invokes a GLOBAL LavishScript atom and returns its value, typed. We
 -- define one on the fly here with the AddAtom console command; normally a running
 -- .iss script would have declared it with `atom(global) example_bonus(...)`.
+-- ARGUMENTS ARE POSITIONAL: read them inside the atom body as ${1}, ${2}, ... (NOT by
+-- the declared parameter name). The (int base,int mult) declaration documents intent;
+-- the body computes from ${1}/${2}. (An argument containing a ',' or ']' is unsupported.)
 IS.Execute("DeleteAtom example_bonus")   -- clear any prior definition (harmless if none)
-IS.Execute([[AddAtom -global "atom example_bonus(int base, int mult)\n{\nreturn ${Math.Calc[${base}*${mult}]}\n}"]])
+IS.Execute([[AddAtom -global "atom example_bonus(int base, int mult)\n{\nreturn ${Math.Calc[${1}*${2}]}\n}"]])
 
 -- CallAtom raises if the atom is not a resolvable GLOBAL atom, so guard with pcall.
 local okCall, bonus = pcall(IS.CallAtom, "example_bonus", ammo, 2)

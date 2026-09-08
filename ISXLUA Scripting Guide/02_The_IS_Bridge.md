@@ -132,10 +132,11 @@ LavishScript (a Lua number becomes its exact numeric text, a boolean becomes
 returns nothing yields `nil`.
 
 ```lua
--- A LavishScript script defined a global atom, e.g.:
+-- A LavishScript script defined a global atom, e.g. (arguments are read POSITIONALLY,
+-- as ${1}, ${2}, ... -- NOT by the declared parameter name):
 --   atom(global) ComputeBonus(int base, int mult)
 --   {
---       return ${Math.Calc[${base} * ${mult}]}
+--       return ${Math.Calc[${1} * ${2}]}
 --   }
 local bonus = IS.CallAtom("ComputeBonus", 10, 3)   -- 30 (a Lua number)
 
@@ -149,12 +150,18 @@ Notes and limits:
   script, or register it globally with the `AddAtom -global "..."` command. A
   script-scoped atom is not reachable from here and raises an error naming the
   atom.
-- **Arguments bind to the atom's declared parameters, read by name.** The values
-  you pass are assigned, left to right, to the parameters in the atom's signature,
-  and the body reads them by those names -- e.g. `atom(global) ComputeBonus(int
-  base, int mult)` reads `${base}` and `${mult}`. This is the same convention every
-  `.iss` atom uses; you do not write `${1}`/`${2}` (declare named parameters
-  instead).
+- **Arguments bind POSITIONALLY -- read them as `${1}`, `${2}`, ...** The values you
+  pass are delivered to the atom in order, and the body reads them by position, not
+  by the declared parameter name: `atom(global) ComputeBonus(int base, int mult)`
+  reads `${1}` and `${2}` (the `(int base, int mult)` declaration still documents the
+  intended signature). Writing `${base}`/`${mult}` in the body would read them as
+  empty. (This differs from calling an atom through the LavishScript `ExecuteAtom`
+  command or `Script:ExecuteAtom[...]` method, where the declared names DO bind --
+  `IS.CallAtom` reaches the atom by a different route.)
+- **An argument may not contain a `,` or `]`.** Arguments are passed through a
+  bracketed, comma-separated list, so a value with either character breaks the list.
+  Pass such a value by writing it to a variable first (`IS.SetVar`) and having the
+  atom read that `${variable}`.
 - **Atoms are atomic** (they run to completion with no `wait`), so `IS.CallAtom`
   returns as soon as the atom finishes.
 - **Empty return == no return.** LavishScript hands an atom's return back as a
