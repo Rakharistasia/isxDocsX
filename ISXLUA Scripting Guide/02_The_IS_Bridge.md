@@ -125,23 +125,33 @@ Notes and limits:
 
 ### `IS.CallAtom` -- call a LavishScript atom, get its return
 
-**`IS.CallAtom(name [, args...])`.** Invokes a **global** LavishScript atom by name, marshaling your arguments to
-LavishScript (a Lua number becomes its exact numeric text, a boolean becomes
-`TRUE`/`FALSE`), and returns the atom's `return`ed value as a **native Lua value**
-(`TRUE`/`FALSE` -> boolean, numeric -> number, otherwise a string). An atom that
-returns nothing yields `nil`.
+**`IS.CallAtom(name)`.** Invokes a **global** LavishScript atom by name and returns the
+atom's `return`ed value as a **native Lua value** (`TRUE`/`FALSE` -> boolean, numeric ->
+number, otherwise a string). An atom that returns nothing yields `nil`.
+
+**Arguments are NOT forwarded to the atom.** This is a LavishScript limitation of calling an
+atom from an extension context: `IS.CallAtom` can invoke a global atom and capture its
+return, but there is no way to hand it direct arguments. To pass inputs, **set a variable
+with `IS.SetVar` and read it inside the atom as `${variable}`.** Calling `IS.CallAtom` with
+extra arguments raises a clear error rather than silently dropping them.
 
 ```lua
--- A LavishScript script defined a global atom, e.g. (arguments are read POSITIONALLY,
--- as ${1}, ${2}, ... -- NOT by the declared parameter name):
---   atom(global) ComputeBonus(int base, int mult)
+-- A LavishScript script defined a global atom that reads its inputs from variables:
+--   atom(global) ComputeBonus()
 --   {
---       return ${Math.Calc[${1} * ${2}]}
+--       return ${Math.Calc[${bonus_base} * ${bonus_mult}]}
 --   }
-local bonus = IS.CallAtom("ComputeBonus", 10, 3)   -- 30 (a Lua number)
+
+-- Stage the inputs, then invoke the (no-argument) atom and read its typed return.
+IS.SetVar("bonus_base", 10)
+IS.SetVar("bonus_mult", 3)
+local bonus = IS.CallAtom("ComputeBonus")   -- 30 (a Lua number)
 
 -- Fire-and-forget: an atom with no return value gives nil.
 IS.CallAtom("RefreshUI")
+
+-- Passing arguments directly is NOT supported and raises:
+-- IS.CallAtom("ComputeBonus", 10, 3)   -- error: arguments are not forwarded; use IS.SetVar
 ```
 
 Notes and limits:
@@ -150,18 +160,12 @@ Notes and limits:
   script, or register it globally with the `AddAtom -global "..."` command. A
   script-scoped atom is not reachable from here and raises an error naming the
   atom.
-- **Arguments bind POSITIONALLY -- read them as `${1}`, `${2}`, ...** The values you
-  pass are delivered to the atom in order, and the body reads them by position, not
-  by the declared parameter name: `atom(global) ComputeBonus(int base, int mult)`
-  reads `${1}` and `${2}` (the `(int base, int mult)` declaration still documents the
-  intended signature). Writing `${base}`/`${mult}` in the body would read them as
-  empty. (This differs from calling an atom through the LavishScript `ExecuteAtom`
-  command or `Script:ExecuteAtom[...]` method, where the declared names DO bind --
-  `IS.CallAtom` reaches the atom by a different route.)
-- **An argument may not contain a `,` or `]`.** Arguments are passed through a
-  bracketed, comma-separated list, so a value with either character breaks the list.
-  Pass such a value by writing it to a variable first (`IS.SetVar`) and having the
-  atom read that `${variable}`.
+- **Arguments are not forwarded -- pass inputs via `IS.SetVar`.** `IS.CallAtom(name)`
+  runs the atom and returns its value, but it cannot deliver arguments to the atom
+  (a LavishScript limitation from an extension context). Write each input to a
+  variable first (`IS.SetVar("myvar", value)`) and read it inside the atom body as
+  `${myvar}`. Calling `IS.CallAtom` with extra arguments raises an error telling you
+  to use `IS.SetVar`.
 - **Atoms are atomic** (they run to completion with no `wait`), so `IS.CallAtom`
   returns as soon as the atom finishes.
 - **Empty return == no return.** LavishScript hands an atom's return back as a

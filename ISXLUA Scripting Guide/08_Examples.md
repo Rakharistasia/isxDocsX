@@ -553,7 +553,7 @@ the console or an `.iss` bot can call in.
 --
 --   FORWARD INTEROP (reach INTO LavishScript from Lua -- typed):
 --     * IS.SetVar(name, value) / IS.GetVar(name [, default])   (LavishScript variables)
---     * IS.CallAtom(name [, args...])                          (call a LavishScript atom)
+--     * IS.CallAtom(name)                                      (call a LavishScript atom)
 --
 --   CROSS-SCRIPT SHARED STORE (deep-copied between the isolated Lua states):
 --     * IS.Share(key, value) / IS.Shared(key)
@@ -624,17 +624,19 @@ echo("LavishScript's view via ${example_ammo}: " .. tostring(IS.Parse("${example
 
 -- IS.CallAtom invokes a GLOBAL LavishScript atom and returns its value, typed. We
 -- define one on the fly here with the AddAtom console command; normally a running
--- .iss script would have declared it with `atom(global) example_bonus(...)`.
--- ARGUMENTS ARE POSITIONAL: read them inside the atom body as ${1}, ${2}, ... (NOT by
--- the declared parameter name). The (int base,int mult) declaration documents intent;
--- the body computes from ${1}/${2}. (An argument containing a ',' or ']' is unsupported.)
+-- .iss script would have declared it with `atom(global) example_bonus()`.
+-- ARGUMENTS ARE NOT FORWARDED to the atom (a LavishScript limitation from an extension
+-- context): pass inputs via IS.SetVar and read them inside the atom body as ${varname}.
+-- Calling IS.CallAtom with extra arguments raises an error rather than dropping them.
+IS.SetVar("example_bonus_base", ammo)    -- stage the inputs the atom will read as ${...}
+IS.SetVar("example_bonus_mult", 2)
 IS.Execute("DeleteAtom example_bonus")   -- clear any prior definition (harmless if none)
-IS.Execute([[AddAtom -global "atom example_bonus(int base, int mult)\n{\nreturn ${Math.Calc[${1}*${2}]}\n}"]])
+IS.Execute([[AddAtom -global "atom example_bonus()\n{\nreturn ${Math.Calc[${example_bonus_base}*${example_bonus_mult}]}\n}"]])
 
 -- CallAtom raises if the atom is not a resolvable GLOBAL atom, so guard with pcall.
-local okCall, bonus = pcall(IS.CallAtom, "example_bonus", ammo, 2)
+local okCall, bonus = pcall(IS.CallAtom, "example_bonus")
 if okCall and type(bonus) == "number" then
-    echo("IS.CallAtom('example_bonus', " .. ammo .. ", 2) = " .. bonus .. " (a Lua number)")
+    echo("IS.CallAtom('example_bonus') with base=" .. ammo .. " mult=2 = " .. bonus .. " (a Lua number)")
 else
     echo("[note] the example atom was not callable this run (" .. tostring(bonus) .. ");")
     echo("       declare a global atom in an .iss script and call it with IS.CallAtom.")
